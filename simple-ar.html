@@ -611,11 +611,21 @@
             transform: translate(-50%, -50%);
             width: 80%;
             height: 60%;
-            object-fit: contain;
-            background: rgba(0, 0, 0, 0.8);
+            object-fit: cover;
+            background: rgba(0, 0, 0, 0.9);
             border-radius: 15px;
             border: 3px solid #ff6b35;
             box-shadow: 0 0 20px rgba(255, 107, 53, 0.5);
+            z-index: 10;
+            display: block;
+        }
+
+        .overlay-video::-webkit-media-controls {
+            display: none !important;
+        }
+
+        .overlay-video::-webkit-media-controls-enclosure {
+            display: none !important;
         }
 
         .overlay-frame {
@@ -1804,6 +1814,12 @@
         function startImageDetectionOverlay(arData) {
             document.getElementById('arStatus').textContent = '🎯 이미지 인식 중...';
             
+            // 사용자 상호작용 활성화 (비디오 재생을 위해)
+            if (!userInteracted) {
+                document.addEventListener('click', enableAudio, { once: true });
+                document.addEventListener('touchstart', enableAudio, { once: true });
+            }
+            
             // 3초 후 이미지 감지 시뮬레이션
             setTimeout(() => {
                 document.getElementById('arStatus').textContent = '✅ 이미지 감지됨! 비디오 준비 중...';
@@ -1819,35 +1835,84 @@
             const arOverlayContainer = document.getElementById('arOverlayContainer');
             const overlayInstructions = document.getElementById('overlayInstructions');
             
+            console.log('비디오 오버레이 로딩 시작');
+            console.log('비디오 데이터 크기:', arData.videoData ? arData.videoData.length : '없음');
+            
             // 오버레이 컨테이너 표시
             arOverlayContainer.classList.add('active');
             overlayInstructions.textContent = '비디오 로딩 중...';
             
+            // 비디오 데이터 검증
+            if (!arData.videoData || arData.videoData.length < 1000) {
+                console.warn('유효하지 않은 비디오 데이터, 폴백 사용');
+                showYouTubeOverlay();
+                return;
+            }
+            
+            // 비디오 요소 초기화
+            overlayVideo.pause();
+            overlayVideo.currentTime = 0;
+            overlayVideo.src = '';
+            
+            // 비디오 속성 설정
+            overlayVideo.setAttribute('autoplay', 'true');
+            overlayVideo.setAttribute('loop', 'true');
+            overlayVideo.setAttribute('muted', 'true');
+            overlayVideo.setAttribute('playsinline', 'true');
+            overlayVideo.style.display = 'block';
+            
             // 비디오 소스 설정
             overlayVideo.src = arData.videoData;
             
-            // 비디오 로드 이벤트
-            overlayVideo.oncanplaythrough = () => {
-                console.log('오버레이 비디오 로드 완료');
-                document.getElementById('arStatus').textContent = '🎬 AR 비디오 재생 중';
-                overlayInstructions.textContent = '✅ AR 영상이 재생되고 있습니다 (터치하면 소리)';
+            // 비디오 로드 완료 이벤트
+            overlayVideo.onloadeddata = () => {
+                console.log('비디오 데이터 로드 완료');
+                console.log('비디오 크기:', overlayVideo.videoWidth, 'x', overlayVideo.videoHeight);
+                console.log('비디오 길이:', overlayVideo.duration, '초');
                 
-                // 비디오 재생
-                if (userInteracted) {
-                    overlayVideo.muted = false;
+                // 비디오 재생 시도
+                const playPromise = overlayVideo.play();
+                
+                if (playPromise !== undefined) {
+                    playPromise.then(() => {
+                        console.log('오버레이 비디오 재생 시작됨');
+                        document.getElementById('arStatus').textContent = '🎬 AR 비디오 재생 중';
+                        overlayInstructions.textContent = '✅ AR 영상이 재생되고 있습니다 (터치하면 소리)';
+                        
+                        // 사용자 상호작용이 있었다면 소리 활성화
+                        if (userInteracted) {
+                            overlayVideo.muted = false;
+                            overlayInstructions.textContent = '✅ AR 영상이 재생되고 있습니다 (소리 ON)';
+                        }
+                        
+                    }).catch(error => {
+                        console.error('비디오 재생 실패:', error);
+                        // 재생 실패 시 다시 시도
+                        setTimeout(() => {
+                            tryPlayVideo();
+                        }, 1000);
+                    });
                 }
-                
-                overlayVideo.play().then(() => {
-                    console.log('오버레이 비디오 재생 시작');
-                }).catch(error => {
-                    console.error('오버레이 비디오 재생 실패:', error);
-                    showYouTubeOverlay();
-                });
+            };
+            
+            // 비디오 재생 가능 이벤트
+            overlayVideo.oncanplay = () => {
+                console.log('비디오 재생 가능 상태');
+                if (overlayVideo.paused) {
+                    tryPlayVideo();
+                }
+            };
+            
+            // 비디오 재생 시작 이벤트
+            overlayVideo.onplay = () => {
+                console.log('비디오 재생 시작됨');
+                overlayInstructions.textContent = '✅ AR 영상이 재생되고 있습니다 (터치하면 소리)';
             };
             
             // 비디오 로드 실패 시
-            overlayVideo.onerror = () => {
-                console.warn('오버레이 비디오 로드 실패, 폴백 사용');
+            overlayVideo.onerror = (e) => {
+                console.error('오버레이 비디오 로드 실패:', e);
+                console.error('비디오 오류 코드:', overlayVideo.error ? overlayVideo.error.code : '없음');
                 showYouTubeOverlay();
             };
             
@@ -1856,6 +1921,7 @@
                 if (overlayVideo.muted) {
                     overlayVideo.muted = false;
                     overlayInstructions.textContent = '🔊 소리가 켜졌습니다';
+                    userInteracted = true;
                 } else {
                     overlayVideo.muted = true;
                     overlayInstructions.textContent = '🔇 소리가 꺼졌습니다';
@@ -1863,17 +1929,75 @@
                 
                 // 3초 후 원래 메시지로 복원
                 setTimeout(() => {
-                    overlayInstructions.textContent = '✅ AR 영상이 재생되고 있습니다 (터치하면 소리)';
+                    if (overlayVideo.muted) {
+                        overlayInstructions.textContent = '✅ AR 영상이 재생되고 있습니다 (터치하면 소리)';
+                    } else {
+                        overlayInstructions.textContent = '✅ AR 영상이 재생되고 있습니다 (소리 ON)';
+                    }
                 }, 3000);
             };
             
-            // 5초 타임아웃
+            // 비디오 재생 시도 함수
+            function tryPlayVideo() {
+                console.log('비디오 재생 시도');
+                console.log('비디오 readyState:', overlayVideo.readyState);
+                console.log('비디오 paused:', overlayVideo.paused);
+                console.log('비디오 currentTime:', overlayVideo.currentTime);
+                
+                if (overlayVideo.readyState >= 2) { // HAVE_CURRENT_DATA
+                    // 비디오 속성 재설정
+                    overlayVideo.muted = true;
+                    overlayVideo.loop = true;
+                    overlayVideo.autoplay = true;
+                    
+                    const playPromise = overlayVideo.play();
+                    
+                    if (playPromise !== undefined) {
+                        playPromise.then(() => {
+                            console.log('비디오 재생 성공');
+                            console.log('비디오 현재 재생 시간:', overlayVideo.currentTime);
+                            overlayInstructions.textContent = '✅ AR 영상이 재생되고 있습니다 (터치하면 소리)';
+                        }).catch(error => {
+                            console.warn('비디오 재생 실패, 재시도:', error);
+                            // 다른 방법으로 재시도
+                            setTimeout(() => {
+                                forceVideoPlay();
+                            }, 500);
+                        });
+                    }
+                } else {
+                    console.log('비디오 아직 준비되지 않음, 대기 중...');
+                    setTimeout(tryPlayVideo, 500);
+                }
+            }
+            
+            // 강제 비디오 재생 함수
+            function forceVideoPlay() {
+                console.log('강제 비디오 재생 시도');
+                
+                // 비디오 요소 재설정
+                overlayVideo.load();
+                
+                overlayVideo.addEventListener('loadeddata', function playWhenReady() {
+                    console.log('비디오 데이터 재로드 완료, 재생 시도');
+                    overlayVideo.removeEventListener('loadeddata', playWhenReady);
+                    
+                    // 짧은 지연 후 재생
+                    setTimeout(() => {
+                        overlayVideo.play().then(() => {
+                            console.log('강제 재생 성공');
+                        }).catch(console.error);
+                    }, 100);
+                });
+            }
+            
+            // 10초 타임아웃
             setTimeout(() => {
-                if (!overlayVideo.src || overlayVideo.error) {
-                    console.warn('비디오 로드 시간 초과, 폴백 사용');
+                if (overlayVideo.paused || overlayVideo.error) {
+                    console.warn('비디오 로드/재생 시간 초과, 폴백 사용');
                     showYouTubeOverlay();
                 }
-            }, 5000);
+            }, 10000);
         }
 
         function showYouTubeOverlay() {
