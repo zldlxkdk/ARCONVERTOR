@@ -2227,7 +2227,6 @@
                 console.error('데스크톱 카메라 접근 실패:', error);
                 showFullscreenScanError(error);
             }
-        }
             
             try {
                 let stream = null;
@@ -6736,6 +6735,26 @@
             const debugInfo = document.getElementById('ar-debug-info');
             if (debugInfo) {
                 debugInfo.style.display = 'none';
+            }
+        }
+
+        // 모드 전환 함수
+        function switchMode(mode) {
+            const createMode = document.querySelector('.create-mode');
+            const scanMode = document.querySelector('.scan-mode');
+            const createBtn = document.querySelector('.mode-btn[onclick*="create"]');
+            const scanBtn = document.querySelector('.mode-btn[onclick*="scan"]');
+            
+            if (mode === 'create') {
+                createMode.classList.add('active');
+                scanMode.classList.remove('active');
+                createBtn.classList.add('active');
+                scanBtn.classList.remove('active');
+            } else if (mode === 'scan') {
+                createMode.classList.remove('active');
+                scanMode.classList.add('active');
+                createBtn.classList.remove('active');
+                scanBtn.classList.add('active');
             }
         }
 
