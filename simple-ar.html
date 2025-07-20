@@ -242,6 +242,7 @@
             border-radius: 20px;
             font-size: 12px;
             backdrop-filter: blur(10px);
+            max-width: 250px;
         }
 
         .ar-close {
@@ -511,6 +512,33 @@
             margin: 10px 0;
             border: 2px solid rgba(255, 255, 255, 0.3);
         }
+
+        .fallback-info {
+            background: rgba(255, 193, 7, 0.1);
+            border: 1px solid rgba(255, 193, 7, 0.3);
+            border-radius: 10px;
+            padding: 15px;
+            margin: 15px 0;
+            text-align: center;
+            font-size: 13px;
+        }
+
+        .youtube-embed {
+            width: 100%;
+            height: 200px;
+            border-radius: 10px;
+            border: none;
+            margin: 10px 0;
+        }
+
+        .scan-help {
+            background: rgba(33, 150, 243, 0.1);
+            border: 1px solid rgba(33, 150, 243, 0.3);
+            border-radius: 10px;
+            padding: 15px;
+            margin: 15px 0;
+            font-size: 13px;
+        }
     </style>
 </head>
 <body>
@@ -614,11 +642,38 @@
                     </div>
                 </div>
 
+                <div class="scan-help">
+                    <div style="font-weight: 600; margin-bottom: 10px;">💡 스캔 도움말</div>
+                    <ul style="text-align: left; font-size: 12px;">
+                        <li>📷 카메라를 이미지에서 20-30cm 거리에 두세요</li>
+                        <li>💡 밝은 조명에서 스캔하세요</li>
+                        <li>📐 이미지를 정면에서 비춰주세요</li>
+                        <li>🤚 손을 안정적으로 유지하세요</li>
+                        <li>🔄 3초 후 자동으로 감지됩니다</li>
+                    </ul>
+                </div>
+
+                <div class="fallback-info">
+                    <div style="font-weight: 600; margin-bottom: 10px;">🎬 폴백 영상</div>
+                    <div style="font-size: 12px; opacity: 0.9; margin-bottom: 10px;">
+                        비디오 로드에 실패하면 아래 유튜브 영상이 재생됩니다
+                    </div>
+                    <iframe 
+                        class="youtube-embed"
+                        src="https://www.youtube.com/embed/MX_UceuxveA?autoplay=0&mute=1"
+                        title="Fallback YouTube Video"
+                        frameborder="0"
+                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                        allowfullscreen>
+                    </iframe>
+                </div>
+
                 <div class="scanner-container" id="scannerContainer" style="display: none;">
                     <video id="scannerVideo" class="scanner-video" autoplay muted playsinline></video>
                     <div class="scanner-overlay"></div>
                     <div class="scan-instructions">
-                        생성된 AR 이미지를 프레임 안에 맞춰주세요
+                        생성된 AR 이미지를 프레임 안에 맞춰주세요<br>
+                        <span style="opacity: 0.7;">3초 후 자동 감지</span>
                     </div>
                 </div>
 
@@ -664,8 +719,31 @@
                     width="1.77" 
                     height="1"
                     material="transparent: true; alphaTest: 0.1"
-                    visible="false">
+                    visible="false"
+                    id="ar-video-plane">
                 </a-video>
+                
+                <!-- 유튜브 폴백을 위한 iframe 플레인 -->
+                <a-plane 
+                    id="youtube-fallback"
+                    width="1.77" 
+                    height="1" 
+                    position="0 0 0.05"
+                    material="color: #000; opacity: 0.9"
+                    visible="false">
+                </a-plane>
+                
+                <a-text
+                    id="fallback-text"
+                    value="📺 유튜브 영상 재생 중\n터치해서 보기"
+                    position="0 0 0.1"
+                    align="center"
+                    color="#ff6b35"
+                    font="kelsonsans"
+                    scale="0.3 0.3 0.3"
+                    visible="false">
+                </a-text>
+                
                 <a-plane 
                     width="1.77" 
                     height="1" 
@@ -692,6 +770,12 @@
         let startTime = 0;
         let endTime = 15;
         let videoDuration = 0;
+        let scanTimeout = null;
+        let videoLoadFailed = false;
+
+        // 유튜브 폴백 URL
+        const FALLBACK_YOUTUBE_URL = 'https://www.youtube.com/watch?v=MX_UceuxveA';
+        const YOUTUBE_EMBED_URL = 'https://www.youtube.com/embed/MX_UceuxveA';
 
         // 모드 전환
         function switchMode(mode) {
@@ -755,7 +839,6 @@
                 
                 document.getElementById('step1').classList.add('active');
                 
-                // 비디오 편집기 초기화
                 await initVideoEditor(e.target.result);
             };
             reader.readAsDataURL(file);
@@ -775,7 +858,6 @@
                     videoDuration = editVideo.duration;
                     endTime = Math.min(15, videoDuration);
                     
-                    // 슬라이더 업데이트
                     currentTimeSlider.max = videoDuration;
                     
                     updateTimeDisplays();
@@ -784,7 +866,6 @@
                 };
             });
             
-            // 이벤트 리스너 추가
             currentTimeSlider.addEventListener('input', (e) => {
                 editVideo.currentTime = parseFloat(e.target.value);
                 updateTimeDisplays();
@@ -814,12 +895,10 @@
             
             startTime = videoElement.currentTime;
             
-            // 종료 시간이 시작 시간보다 빠르면 조정
             if (endTime <= startTime) {
                 endTime = Math.min(startTime + 15, videoDuration);
             }
             
-            // 15초 제한 확인
             if (endTime - startTime > 15) {
                 endTime = startTime + 15;
                 if (endTime > videoDuration) {
@@ -837,12 +916,10 @@
             
             endTime = videoElement.currentTime;
             
-            // 시작 시간이 종료 시간보다 늦으면 조정
             if (startTime >= endTime) {
                 startTime = Math.max(0, endTime - 15);
             }
             
-            // 15초 제한 확인
             if (endTime - startTime > 15) {
                 startTime = endTime - 15;
                 if (startTime < 0) {
@@ -866,7 +943,6 @@
             document.getElementById('endTimeDisplay').textContent = formatTime(endTime);
             document.getElementById('selectedDuration').textContent = formatTime(selectedDuration);
             
-            // 경고 표시
             const durationInfo = document.getElementById('durationInfo');
             if (selectedDuration > 15) {
                 durationInfo.style.background = 'rgba(244, 67, 54, 0.1)';
@@ -902,21 +978,18 @@
             `;
             
             try {
-                // Canvas를 사용해 비디오 자르기
                 const canvas = document.createElement('canvas');
                 const ctx = canvas.getContext('2d');
                 
-                // 해상도 조정 (품질과 용량의 균형)
                 canvas.width = 640;
                 canvas.height = Math.round((640 * videoElement.videoHeight) / videoElement.videoWidth);
                 
-                // MediaRecorder로 새 비디오 생성
-                const stream = canvas.captureStream(30); // 30fps
+                const stream = canvas.captureStream(30);
                 const chunks = [];
                 
                 const mediaRecorder = new MediaRecorder(stream, {
                     mimeType: 'video/webm;codecs=vp9',
-                    videoBitsPerSecond: 1000000 // 1Mbps로 제한
+                    videoBitsPerSecond: 1000000
                 });
                 
                 mediaRecorder.ondataavailable = (e) => chunks.push(e.data);
@@ -928,12 +1001,10 @@
                     };
                 });
                 
-                // 녹화 시작
                 mediaRecorder.start();
                 
-                // 비디오 프레임 그리기
                 let currentRecordTime = 0;
-                const frameInterval = 1000 / 30; // 30fps
+                const frameInterval = 1000 / 30;
                 
                 const drawFrame = () => {
                     const videoTime = startTime + currentRecordTime;
@@ -950,15 +1021,12 @@
                     setTimeout(drawFrame, frameInterval);
                 };
                 
-                // 첫 번째 프레임부터 시작
                 videoElement.currentTime = startTime;
                 await new Promise(resolve => videoElement.onseeked = resolve);
                 drawFrame();
                 
-                // 처리된 비디오 생성
                 processedVideo = await recordingPromise;
                 
-                // 첫 번째 프레임 추출
                 await extractFirstFrame();
                 
                 progressDiv.innerHTML = `
@@ -986,7 +1054,6 @@
 
         async function extractFirstFrame() {
             try {
-                // 처리된 비디오의 첫 번째 프레임 추출
                 const video = document.createElement('video');
                 video.src = URL.createObjectURL(processedVideo);
                 video.muted = true;
@@ -1028,10 +1095,8 @@
             `;
 
             try {
-                // 처리된 비디오를 Base64로 변환
                 const videoBase64 = await blobToBase64(processedVideo);
                 
-                // AR 데이터 생성
                 const arId = 'ar_' + Date.now();
                 arTargetData = {
                     id: arId,
@@ -1040,10 +1105,10 @@
                     fileName: uploadedVideo.name,
                     duration: endTime - startTime,
                     createdAt: new Date().toISOString(),
+                    fallbackUrl: FALLBACK_YOUTUBE_URL,
                     type: 'ar_image_video'
                 };
                 
-                // 로컬 스토리지에 저장
                 localStorage.setItem('arData_' + arId, JSON.stringify(arTargetData));
                 
                 progressDiv.innerHTML = '';
@@ -1057,13 +1122,15 @@
                             <img src="${extractedFrame}" class="target-image" alt="AR 타겟 이미지">
                             <div style="color: #666; font-size: 12px; margin-top: 10px;">
                                 ID: ${arId}<br>
-                                길이: ${formatTime(arTargetData.duration)}
+                                길이: ${formatTime(arTargetData.duration)}<br>
+                                폴백: YouTube 영상
                             </div>
                         </div>
                         
                         <div style="font-size: 13px; opacity: 0.9; margin: 15px 0;">
                             📱 이 이미지를 스캔하면 AR 비디오가 재생됩니다<br>
-                            🖨️ 인쇄하거나 다른 화면에 표시해서 사용하세요
+                            🖨️ 인쇄하거나 다른 화면에 표시해서 사용하세요<br>
+                            ⚠️ 비디오 로드 실패 시 유튜브 영상이 재생됩니다
                         </div>
                         
                         <div class="download-section">
@@ -1141,7 +1208,8 @@
                 });
                 video.srcObject = stream;
                 
-                setTimeout(() => {
+                // 3초 후 자동 감지
+                scanTimeout = setTimeout(() => {
                     simulateImageDetection();
                 }, 3000);
                 
@@ -1179,6 +1247,11 @@
                 video.srcObject.getTracks().forEach(track => track.stop());
             }
             
+            if (scanTimeout) {
+                clearTimeout(scanTimeout);
+                scanTimeout = null;
+            }
+            
             document.getElementById('arViewer').style.display = 'block';
             document.getElementById('arStatus').textContent = 'AR 시스템 초기화 중...';
             
@@ -1188,23 +1261,29 @@
             const arVideo = document.getElementById('ar-video');
             arVideo.src = arData.videoData;
             
+            // 비디오 로드 실패 처리
+            arVideo.onerror = () => {
+                console.warn('AR 비디오 로드 실패, 유튜브 폴백 사용');
+                videoLoadFailed = true;
+            };
+            
             if (!userInteracted) {
                 document.addEventListener('click', enableAudio, { once: true });
                 document.addEventListener('touchstart', enableAudio, { once: true });
             }
             
             setTimeout(async () => {
-                await initializeMindAR(arData.targetImage);
+                await initializeMindAR(arData);
             }, 1000);
         }
 
-        async function initializeMindAR(targetImageSrc) {
+        async function initializeMindAR(arData) {
             try {
                 document.getElementById('arStatus').textContent = 'AR 타겟 생성 중...';
                 document.getElementById('arStatus').textContent = 'AR 준비 완료 - 이미지를 비춰주세요';
                 
                 setTimeout(() => {
-                    simulateTargetDetection();
+                    simulateTargetDetection(arData);
                 }, 3000);
                 
             } catch (error) {
@@ -1212,14 +1291,40 @@
             }
         }
 
-        function simulateTargetDetection() {
-            document.getElementById('arStatus').textContent = '🎯 이미지 감지됨! 비디오 재생 중';
+        function simulateTargetDetection(arData) {
+            document.getElementById('arStatus').textContent = '🎯 이미지 감지됨! 비디오 로딩 중...';
             
             const arVideo = document.getElementById('ar-video');
-            const arVideoElement = document.querySelector('a-video');
+            const arVideoElement = document.getElementById('ar-video-plane');
             const arOverlay = document.getElementById('ar-overlay');
+            const youtubeFallback = document.getElementById('youtube-fallback');
+            const fallbackText = document.getElementById('fallback-text');
             
-            if (arVideoElement && arVideo) {
+            // 비디오 로드 시도
+            const tryLoadVideo = () => {
+                return new Promise((resolve, reject) => {
+                    const timeout = setTimeout(() => {
+                        reject(new Error('비디오 로드 시간 초과'));
+                    }, 5000);
+                    
+                    arVideo.oncanplaythrough = () => {
+                        clearTimeout(timeout);
+                        resolve();
+                    };
+                    
+                    arVideo.onerror = () => {
+                        clearTimeout(timeout);
+                        reject(new Error('비디오 로드 실패'));
+                    };
+                    
+                    // 비디오 로드 시작
+                    arVideo.load();
+                });
+            };
+            
+            tryLoadVideo().then(() => {
+                // 비디오 로드 성공
+                document.getElementById('arStatus').textContent = '🎬 AR 비디오 재생 중';
                 arVideoElement.setAttribute('visible', true);
                 arOverlay.setAttribute('visible', true);
                 
@@ -1227,7 +1332,29 @@
                     arVideo.muted = false;
                 }
                 arVideo.play().catch(console.error);
-            }
+                
+            }).catch((error) => {
+                // 비디오 로드 실패 - 유튜브 폴백 사용
+                console.warn('비디오 로드 실패:', error.message);
+                document.getElementById('arStatus').textContent = '📺 유튜브 영상으로 재생 중';
+                
+                // 유튜브 폴백 표시
+                youtubeFallback.setAttribute('visible', true);
+                fallbackText.setAttribute('visible', true);
+                arOverlay.setAttribute('visible', true);
+                
+                // 유튜브 창 열기 (클릭 이벤트)
+                document.addEventListener('click', openYouTubeVideo, { once: true });
+                document.addEventListener('touchstart', openYouTubeVideo, { once: true });
+            });
+        }
+
+        function openYouTubeVideo() {
+            // 유튜브 비디오 새 창에서 열기
+            window.open(FALLBACK_YOUTUBE_URL, '_blank');
+            
+            // 상태 업데이트
+            document.getElementById('arStatus').textContent = '📺 유튜브 영상이 새 창에서 열렸습니다';
         }
 
         function enableAudio() {
@@ -1246,6 +1373,11 @@
                 video.srcObject.getTracks().forEach(track => track.stop());
             }
             
+            if (scanTimeout) {
+                clearTimeout(scanTimeout);
+                scanTimeout = null;
+            }
+            
             document.getElementById('scannerContainer').style.display = 'none';
             document.getElementById('startScanBtn').style.display = 'block';
             
@@ -1255,8 +1387,13 @@
                 arVideo.currentTime = 0;
             }
             
-            document.querySelector('a-video').setAttribute('visible', false);
+            // 모든 AR 요소 숨김
+            document.getElementById('ar-video-plane').setAttribute('visible', false);
             document.getElementById('ar-overlay').setAttribute('visible', false);
+            document.getElementById('youtube-fallback').setAttribute('visible', false);
+            document.getElementById('fallback-text').setAttribute('visible', false);
+            
+            videoLoadFailed = false;
         }
 
         // URL 파라미터로 AR ID가 전달된 경우 자동 로드
