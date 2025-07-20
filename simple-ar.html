@@ -2236,7 +2236,7 @@
             attemptAutoImageDetectionFullscreen(arKeys);
         }
 
-        function attemptAutoImageDetectionFullscreen(arKeys) {
+                function attemptAutoImageDetectionFullscreen(arKeys) {
             const video = document.getElementById('scannerVideoFullscreen');
             const scanStatusFullscreen = document.getElementById('scanStatusFullscreen');
             const scanInstructionsFullscreen = document.getElementById('scanInstructionsFullscreen');
@@ -2276,11 +2276,11 @@
             // 자동 감지 영역 애니메이션 시작
             autoDetectionArea.style.animation = 'pulse 2s infinite';
 
-            // 전체 화면에서 이미지 감지 (프레임 제한 없음)
+            // 새로운 간단한 감지 시스템
             const canvas = document.createElement('canvas');
             const ctx = canvas.getContext('2d');
-            canvas.width = video.videoWidth || 1280;
-            canvas.height = video.videoHeight || 720;
+            canvas.width = 320; // 작은 크기로 성능 향상
+            canvas.height = 240;
 
             let detectionCount = 0;
             const maxDetections = 30; // 30초 동안 시도
@@ -2289,41 +2289,47 @@
                 detectionCount++;
 
                 try {
-                    // 전체 화면 캡처 (프레임 제한 없음)
+                    // 현재 프레임 캡처
                     ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-                    const fullFrame = canvas.toDataURL('image/jpeg', 0.8);
-
-                    // 전체 화면에서 이미지 검색
+                    const currentFrame = canvas.toDataURL('image/jpeg', 0.7);
+                    
+                    // 저장된 AR 이미지들과 비교 (비동기 처리)
                     let bestMatch = null;
                     let bestScore = 0;
-
-                    // 모든 AR 이미지와 비교
-                    for (const key of arKeys) {
-                        const arData = JSON.parse(localStorage.getItem(key));
-                        
-                        let similarity = 0;
-                        
-                        // 특수 마커가 있는 경우 고급 인식 사용
-                        if (arData.hasSpecialMarkers) {
-                            similarity = await analyzeSpecialMarkers(fullFrame, arData.targetImage);
-                        } else {
-                            // 기본 이미지 비교 (전체 화면) - Promise 기반
-                            similarity = await compareImages(fullFrame, arData.targetImage);
+                    
+                    // 병렬로 모든 이미지 비교
+                    const comparisonPromises = arKeys.map(async (key) => {
+                        try {
+                            const arData = JSON.parse(localStorage.getItem(key));
+                            if (arData && arData.targetImage) {
+                                const similarity = await compareImages(currentFrame, arData.targetImage);
+                                return {
+                                    id: key.replace('arData_', ''),
+                                    score: similarity,
+                                    data: arData,
+                                    hasSpecialMarkers: arData.hasSpecialMarkers || false
+                                };
+                            }
+                            return null;
+                        } catch (error) {
+                            console.warn(`이미지 비교 오류 (${key}):`, error);
+                            return null;
                         }
-
-                        console.log(`🔍 ${key}: 유사도 ${Math.round(similarity * 100)}%`);
-
-                        if (similarity > bestScore) {
-                            bestScore = similarity;
-                            bestMatch = {
-                                id: key.replace('arData_', ''),
-                                score: similarity,
-                                data: arData,
-                                hasSpecialMarkers: arData.hasSpecialMarkers || false
-                            };
+                    });
+                    
+                    const results = await Promise.all(comparisonPromises);
+                    
+                    // 최고 점수 찾기
+                    results.forEach(result => {
+                        if (result && result.score > bestScore) {
+                            bestScore = result.score;
+                            bestMatch = result;
                         }
-                    }
+                    });
 
+                    // 매우 낮은 임계값으로 감지 민감도 향상
+                    const threshold = 0.1; // 10%만 일치해도 감지
+                    
                     console.log(`🔍 전체 화면 자동 감지 ${detectionCount}: 최고 유사도 ${Math.round(bestScore * 100)}%`);
                     console.log(`📊 감지 상세 정보:`, {
                         검색된_이미지_수: arKeys.length,
@@ -2344,9 +2350,6 @@
                         <span style="font-size: 10px; opacity: 0.5;">검색된 이미지: ${arKeys.length}개</span>
                     `;
 
-                    // 임계값 적용 (매우 낮은 임계값으로 감지 민감도 대폭 향상)
-                    const threshold = bestMatch && bestMatch.hasSpecialMarkers ? 0.2 : 0.15;
-                    
                     if (bestMatch && bestScore > threshold) {
                         clearInterval(detectInterval);
 
@@ -2381,10 +2384,42 @@
                     } else if (detectionCount >= maxDetections) {
                         clearInterval(detectInterval);
 
-                        scanInstructionsFullscreen.innerHTML = `
-                            <span style="color: #ff6b35;">⏰ 자동 감지 시간 초과</span><br>
-                            <span style="opacity: 0.8;">이미지를 찾지 못했습니다. 다시 시도해주세요</span>
-                        `;
+                        // 최대 시도 후에도 인식 실패 - 가장 유사한 것 사용
+                        if (bestMatch && bestScore > 0.05) { // 5% 이상이면 사용
+                            scanInstructionsFullscreen.innerHTML = `
+                                <span style="color: #ff6b35;">📷 유사한 이미지 발견 (${Math.round(bestScore * 100)}%)</span><br>
+                                <span style="opacity: 0.8;">부분 매칭으로 실행합니다...</span>
+                            `;
+                            
+                            setTimeout(() => {
+                                try {
+                                    closeFullscreenScan();
+                                    loadAndPlayAR(bestMatch.id);
+                                } catch (error) {
+                                    console.error('AR 로딩 오류 (부분 매칭):', error);
+                                    showFullscreenScanError(error);
+                                }
+                            }, 2000);
+                        } else {
+                            // 완전 실패 - 최신 이미지 사용
+                            scanInstructionsFullscreen.innerHTML = `
+                                <span style="color: #ff6b35;">⏰ 자동 감지 시간 초과</span><br>
+                                <span style="opacity: 0.8;">최신 AR 이미지로 실행합니다...</span>
+                            `;
+                            
+                            const latestKey = arKeys[arKeys.length - 1];
+                            const arId = latestKey.replace('arData_', '');
+                            
+                            setTimeout(() => {
+                                try {
+                                    closeFullscreenScan();
+                                    loadAndPlayAR(arId);
+                                } catch (error) {
+                                    console.error('AR 로딩 오류 (최신 이미지):', error);
+                                    showFullscreenScanError(error);
+                                }
+                            }, 2000);
+                        }
 
                         // 자동 감지 영역 실패 표시
                         autoDetectionArea.style.border = '3px solid #f44336';
@@ -2398,7 +2433,27 @@
 
                 } catch (error) {
                     console.error('🔍 자동 이미지 감지 오류:', error);
-                    scanStatusFullscreen.textContent = '❌ 이미지 감지 오류';
+                    
+                    // 오류가 발생해도 계속 시도
+                    if (detectionCount >= maxDetections) {
+                        clearInterval(detectInterval);
+                        
+                        scanStatusFullscreen.textContent = '❌ 이미지 감지 오류';
+                        
+                        // 오류 발생 시 최신 이미지로 자동 실행
+                        const latestKey = arKeys[arKeys.length - 1];
+                        const arId = latestKey.replace('arData_', '');
+                        
+                        setTimeout(() => {
+                            try {
+                                closeFullscreenScan();
+                                loadAndPlayAR(arId);
+                            } catch (loadError) {
+                                console.error('AR 로딩 오류 (오류 복구):', loadError);
+                                showFullscreenScanError(loadError);
+                            }
+                        }, 2000);
+                    }
                 }
             }, 1000); // 1초마다 검색
         }
