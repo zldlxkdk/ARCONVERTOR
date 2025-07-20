@@ -578,6 +578,130 @@
             margin: 15px 0;
             font-size: 13px;
         }
+
+        .camera-background {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            z-index: 1000;
+            background: #000;
+        }
+
+        .ar-overlay-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1001;
+            display: none;
+        }
+
+        .ar-overlay-container.active {
+            display: block;
+        }
+
+        .overlay-video {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 80%;
+            height: 60%;
+            object-fit: contain;
+            background: rgba(0, 0, 0, 0.8);
+            border-radius: 15px;
+            border: 3px solid #ff6b35;
+            box-shadow: 0 0 20px rgba(255, 107, 53, 0.5);
+        }
+
+        .overlay-frame {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 80%;
+            height: 60%;
+            border: 3px dashed #4CAF50;
+            border-radius: 15px;
+            background: rgba(76, 175, 80, 0.1);
+            pointer-events: none;
+            animation: frameGlow 2s infinite alternate;
+        }
+
+        @keyframes frameGlow {
+            0% { box-shadow: 0 0 5px rgba(76, 175, 80, 0.5); }
+            100% { box-shadow: 0 0 20px rgba(76, 175, 80, 0.8); }
+        }
+
+        .overlay-instructions {
+            position: absolute;
+            bottom: 10%;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 15px 25px;
+            border-radius: 25px;
+            font-size: 16px;
+            font-weight: 600;
+            text-align: center;
+            backdrop-filter: blur(10px);
+            border: 2px solid #ff6b35;
+        }
+
+        .youtube-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1002;
+            display: none;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .youtube-overlay.active {
+            display: flex;
+        }
+
+        .youtube-content {
+            background: rgba(0, 0, 0, 0.9);
+            border-radius: 20px;
+            padding: 40px;
+            text-align: center;
+            border: 3px solid #ff6b35;
+            backdrop-filter: blur(15px);
+        }
+
+        .youtube-text {
+            font-size: 24px;
+            color: white;
+            margin-bottom: 20px;
+            font-weight: 600;
+        }
+
+        .youtube-play-btn {
+            background: linear-gradient(45deg, #ff6b35, #f7931e);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 25px;
+            cursor: pointer;
+            font-size: 18px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(255, 107, 53, 0.3);
+        }
+
+        .youtube-play-btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 6px 20px rgba(255, 107, 53, 0.5);
+        }
     </style>
 </head>
 <body>
@@ -730,12 +854,32 @@
             <button class="ar-close" onclick="closeARViewer()">✕ 닫기</button>
         </div>
 
+        <!-- 실시간 카메라 화면 (배경) -->
+        <video id="cameraBackground" class="camera-background" autoplay muted playsinline></video>
+
+        <!-- AR 비디오 오버레이 -->
+        <div class="ar-overlay-container" id="arOverlayContainer">
+            <video id="overlayVideo" class="overlay-video" loop muted playsinline></video>
+            <div class="overlay-frame" id="overlayFrame"></div>
+            <div class="overlay-instructions" id="overlayInstructions">
+                이미지를 프레임 안에 맞춰주세요
+            </div>
+        </div>
+
+        <!-- 유튜브 폴백 오버레이 -->
+        <div class="youtube-overlay" id="youtubeOverlay">
+            <div class="youtube-content">
+                <div class="youtube-text">📺 폴백 영상</div>
+                <button class="youtube-play-btn" onclick="openYouTubeVideo()">▶ 유튜브에서 보기</button>
+            </div>
+        </div>
+
         <!-- 카메라 미리보기 -->
         <div class="camera-preview" id="cameraPreview">
             <video id="previewVideo" autoplay muted playsinline></video>
         </div>
         
-        <div class="ar-scene-container">
+        <div class="ar-scene-container" style="display: none;">
             <a-scene 
                 id="ar-scene"
                 mindar-image="imageTargetSrc: #; maxTrack: 1; uiLoading: no; uiScanning: no; uiError: no;"
@@ -1631,13 +1775,17 @@
             arViewer.style.display = 'block';
             arViewer.classList.add('active');
             
-            document.getElementById('arStatus').textContent = 'AR 시스템 초기화 중...';
+            document.getElementById('arStatus').textContent = 'AR 카메라 초기화 중...';
             
-            // 카메라 스트림을 AR 뷰어로 복사
+            // 카메라 스트림을 배경으로 설정
             const scannerVideo = document.getElementById('scannerVideo');
+            const cameraBackground = document.getElementById('cameraBackground');
             const previewVideo = document.getElementById('previewVideo');
             
             if (scannerVideo && scannerVideo.srcObject) {
+                // 배경 카메라 설정
+                cameraBackground.srcObject = scannerVideo.srcObject;
+                // 미리보기도 설정
                 previewVideo.srcObject = scannerVideo.srcObject;
                 document.getElementById('cameraPreview').classList.remove('hidden');
             }
@@ -1647,26 +1795,96 @@
                 scanTimeout = null;
             }
             
-            const targetImage = document.getElementById('ar-target-image');
-            targetImage.src = arData.targetImage;
+            // 이미지 인식 시뮬레이션 시작
+            setTimeout(() => {
+                startImageDetectionOverlay(arData);
+            }, 2000);
+        }
+
+        function startImageDetectionOverlay(arData) {
+            document.getElementById('arStatus').textContent = '🎯 이미지 인식 중...';
             
-            const arVideo = document.getElementById('ar-video');
-            arVideo.src = arData.videoData;
+            // 3초 후 이미지 감지 시뮬레이션
+            setTimeout(() => {
+                document.getElementById('arStatus').textContent = '✅ 이미지 감지됨! 비디오 준비 중...';
+                
+                // 비디오 로드 및 표시
+                loadVideoOverlay(arData);
+                
+            }, 3000);
+        }
+
+        function loadVideoOverlay(arData) {
+            const overlayVideo = document.getElementById('overlayVideo');
+            const arOverlayContainer = document.getElementById('arOverlayContainer');
+            const overlayInstructions = document.getElementById('overlayInstructions');
             
-            // 비디오 로드 실패 처리
-            arVideo.onerror = () => {
-                console.warn('AR 비디오 로드 실패, 유튜브 폴백 사용');
-                videoLoadFailed = true;
+            // 오버레이 컨테이너 표시
+            arOverlayContainer.classList.add('active');
+            overlayInstructions.textContent = '비디오 로딩 중...';
+            
+            // 비디오 소스 설정
+            overlayVideo.src = arData.videoData;
+            
+            // 비디오 로드 이벤트
+            overlayVideo.oncanplaythrough = () => {
+                console.log('오버레이 비디오 로드 완료');
+                document.getElementById('arStatus').textContent = '🎬 AR 비디오 재생 중';
+                overlayInstructions.textContent = '✅ AR 영상이 재생되고 있습니다 (터치하면 소리)';
+                
+                // 비디오 재생
+                if (userInteracted) {
+                    overlayVideo.muted = false;
+                }
+                
+                overlayVideo.play().then(() => {
+                    console.log('오버레이 비디오 재생 시작');
+                }).catch(error => {
+                    console.error('오버레이 비디오 재생 실패:', error);
+                    showYouTubeOverlay();
+                });
             };
             
-            if (!userInteracted) {
-                document.addEventListener('click', enableAudio, { once: true });
-                document.addEventListener('touchstart', enableAudio, { once: true });
-            }
+            // 비디오 로드 실패 시
+            overlayVideo.onerror = () => {
+                console.warn('오버레이 비디오 로드 실패, 폴백 사용');
+                showYouTubeOverlay();
+            };
             
-            setTimeout(async () => {
-                await initializeMindAR(arData);
-            }, 1000);
+            // 비디오 클릭 이벤트 (소리 토글)
+            overlayVideo.onclick = () => {
+                if (overlayVideo.muted) {
+                    overlayVideo.muted = false;
+                    overlayInstructions.textContent = '🔊 소리가 켜졌습니다';
+                } else {
+                    overlayVideo.muted = true;
+                    overlayInstructions.textContent = '🔇 소리가 꺼졌습니다';
+                }
+                
+                // 3초 후 원래 메시지로 복원
+                setTimeout(() => {
+                    overlayInstructions.textContent = '✅ AR 영상이 재생되고 있습니다 (터치하면 소리)';
+                }, 3000);
+            };
+            
+            // 5초 타임아웃
+            setTimeout(() => {
+                if (!overlayVideo.src || overlayVideo.error) {
+                    console.warn('비디오 로드 시간 초과, 폴백 사용');
+                    showYouTubeOverlay();
+                }
+            }, 5000);
+        }
+
+        function showYouTubeOverlay() {
+            const arOverlayContainer = document.getElementById('arOverlayContainer');
+            const youtubeOverlay = document.getElementById('youtubeOverlay');
+            
+            // 비디오 오버레이 숨기고 유튜브 오버레이 표시
+            arOverlayContainer.classList.remove('active');
+            youtubeOverlay.classList.add('active');
+            
+            document.getElementById('arStatus').textContent = '📺 폴백 영상 준비됨';
         }
 
         async function initializeMindAR(arData) {
@@ -2033,12 +2251,16 @@
             arViewer.style.display = 'none';
             arViewer.classList.remove('active');
             
-            // 카메라 미리보기 숨김
+            // 오버레이 요소들 숨김
+            document.getElementById('arOverlayContainer').classList.remove('active');
+            document.getElementById('youtubeOverlay').classList.remove('active');
             document.getElementById('cameraPreview').classList.add('hidden');
             
             // 카메라 스트림 정리
             const scannerVideo = document.getElementById('scannerVideo');
             const previewVideo = document.getElementById('previewVideo');
+            const cameraBackground = document.getElementById('cameraBackground');
+            const overlayVideo = document.getElementById('overlayVideo');
             
             if (scannerVideo && scannerVideo.srcObject) {
                 scannerVideo.srcObject.getTracks().forEach(track => track.stop());
@@ -2047,6 +2269,17 @@
             
             if (previewVideo && previewVideo.srcObject) {
                 previewVideo.srcObject = null;
+            }
+            
+            if (cameraBackground && cameraBackground.srcObject) {
+                cameraBackground.srcObject = null;
+            }
+            
+            // 오버레이 비디오 정리
+            if (overlayVideo) {
+                overlayVideo.pause();
+                overlayVideo.currentTime = 0;
+                overlayVideo.src = '';
             }
             
             if (scanTimeout) {
@@ -2058,7 +2291,7 @@
             document.getElementById('scannerContainer').style.display = 'none';
             document.getElementById('startScanBtn').style.display = 'block';
             
-            // AR 비디오 정리
+            // A-Frame AR 비디오 정리 (사용하지 않지만 정리)
             const arVideo = document.getElementById('ar-video');
             if (arVideo) {
                 arVideo.pause();
@@ -2066,19 +2299,12 @@
                 arVideo.src = '';
             }
             
-            // 모든 AR 요소 숨김
+            // 모든 A-Frame AR 요소 숨김
             document.getElementById('ar-video-plane').setAttribute('visible', false);
             document.getElementById('ar-overlay').setAttribute('visible', false);
             document.getElementById('youtube-fallback').setAttribute('visible', false);
             document.getElementById('fallback-text').setAttribute('visible', false);
             document.getElementById('debug-indicator').setAttribute('visible', false);
-            
-            // 생성된 Canvas 요소들 정리
-            const canvasPlanes = document.querySelectorAll('#ar-target [id^="video-canvas-plane"]');
-            canvasPlanes.forEach(plane => plane.remove());
-            
-            const canvasElements = document.querySelectorAll('a-assets canvas[id^="video-canvas-"]');
-            canvasElements.forEach(canvas => canvas.remove());
             
             videoLoadFailed = false;
             
