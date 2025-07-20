@@ -1,0 +1,504 @@
+/* WebAR 포토 오버레이 시스템 CSS */
+
+/* 전역 리셋 */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background: #000;
+    color: white;
+    overflow: hidden;
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+}
+
+/* WebAR 메인 컨테이너 */
+.webaar-container {
+    position: relative;
+    width: 100vw;
+    height: 100vh;
+    overflow: hidden;
+}
+
+/* A-Frame 씬 스타일 */
+a-scene {
+    width: 100% !important;
+    height: 100% !important;
+}
+
+/* UI 오버레이 */
+.ui-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: 1000;
+}
+
+.ui-overlay > * {
+    pointer-events: auto;
+}
+
+/* 로딩 화면 */
+.loading-screen {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 2000;
+}
+
+.loading-content {
+    text-align: center;
+    padding: 2rem;
+}
+
+.loading-spinner {
+    width: 60px;
+    height: 60px;
+    border: 4px solid rgba(255, 255, 255, 0.3);
+    border-top: 4px solid white;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin: 0 auto 1rem;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+.loading-content h2 {
+    font-size: 1.5rem;
+    margin-bottom: 0.5rem;
+    font-weight: 600;
+}
+
+.loading-content p {
+    font-size: 1rem;
+    opacity: 0.8;
+}
+
+/* 스캔 안내 */
+.scan-guide {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    text-align: center;
+    z-index: 1500;
+    background: rgba(0, 0, 0, 0.7);
+    padding: 2rem;
+    border-radius: 15px;
+    backdrop-filter: blur(10px);
+    max-width: 90%;
+}
+
+.guide-content h3 {
+    font-size: 1.3rem;
+    margin-bottom: 1rem;
+    color: #4CAF50;
+}
+
+.guide-content p {
+    font-size: 1rem;
+    margin-bottom: 1.5rem;
+    opacity: 0.9;
+    line-height: 1.4;
+}
+
+/* 스캔 프레임 */
+.scan-frame {
+    width: 200px;
+    height: 200px;
+    border: 3px solid #4CAF50;
+    border-radius: 10px;
+    margin: 0 auto;
+    position: relative;
+    animation: pulse 2s infinite;
+}
+
+.scan-frame::before {
+    content: '';
+    position: absolute;
+    top: -10px;
+    left: -10px;
+    right: -10px;
+    bottom: -10px;
+    border: 2px solid rgba(76, 175, 80, 0.3);
+    border-radius: 15px;
+    animation: pulse 2s infinite reverse;
+}
+
+@keyframes pulse {
+    0% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.7; transform: scale(1.05); }
+    100% { opacity: 1; transform: scale(1); }
+}
+
+/* 비디오 컨트롤 */
+.video-controls {
+    position: absolute;
+    bottom: 100px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    gap: 15px;
+    z-index: 1500;
+    background: rgba(0, 0, 0, 0.8);
+    padding: 15px;
+    border-radius: 25px;
+    backdrop-filter: blur(10px);
+}
+
+.control-btn {
+    width: 50px;
+    height: 50px;
+    border: none;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.9);
+    color: #333;
+    font-size: 1.2rem;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.control-btn:hover {
+    background: white;
+    transform: scale(1.1);
+}
+
+.control-btn:active {
+    transform: scale(0.95);
+}
+
+/* 상태 표시 */
+.status-display {
+    position: absolute;
+    top: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 1500;
+    background: rgba(0, 0, 0, 0.7);
+    padding: 10px 20px;
+    border-radius: 20px;
+    backdrop-filter: blur(10px);
+}
+
+#status-text {
+    font-size: 0.9rem;
+    font-weight: 500;
+    text-align: center;
+}
+
+/* 관리자 패널 */
+.admin-panel {
+    position: absolute;
+    top: 20px;
+    right: 20px;
+    width: 300px;
+    max-height: 70vh;
+    background: rgba(0, 0, 0, 0.9);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 10px;
+    padding: 1rem;
+    z-index: 2000;
+    overflow-y: auto;
+}
+
+.admin-panel h4 {
+    margin-bottom: 1rem;
+    color: #ff6b35;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+    padding-bottom: 0.5rem;
+}
+
+.admin-controls {
+    margin-bottom: 1rem;
+}
+
+.admin-controls button {
+    background: #4CAF50;
+    color: white;
+    border: none;
+    padding: 0.5rem 1rem;
+    border-radius: 5px;
+    margin: 0.25rem 0.25rem 0.25rem 0;
+    cursor: pointer;
+    font-size: 0.8rem;
+    transition: background 0.3s ease;
+}
+
+.admin-controls button:hover {
+    background: #45a049;
+}
+
+.mapping-list {
+    margin-top: 1rem;
+}
+
+.mapping-list h5 {
+    margin-bottom: 0.5rem;
+    color: #ccc;
+    font-size: 0.9rem;
+}
+
+.mapping-list ul {
+    list-style: none;
+    padding: 0;
+}
+
+.mapping-list li {
+    background: rgba(255, 255, 255, 0.1);
+    margin-bottom: 0.5rem;
+    padding: 0.5rem;
+    border-radius: 5px;
+    font-size: 0.8rem;
+    line-height: 1.3;
+}
+
+/* 관리자 패널 토글 버튼 */
+.admin-toggle {
+    position: absolute;
+    bottom: 20px;
+    right: 20px;
+    width: 50px;
+    height: 50px;
+    border: none;
+    border-radius: 50%;
+    background: rgba(255, 107, 53, 0.9);
+    color: white;
+    font-size: 1.2rem;
+    cursor: pointer;
+    z-index: 1500;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.admin-toggle:hover {
+    background: #ff6b35;
+    transform: scale(1.1);
+}
+
+.admin-toggle:active {
+    transform: scale(0.95);
+}
+
+/* 모바일 최적화 */
+@media (max-width: 768px) {
+    .scan-guide {
+        padding: 1.5rem;
+        max-width: 95%;
+    }
+    
+    .guide-content h3 {
+        font-size: 1.1rem;
+    }
+    
+    .guide-content p {
+        font-size: 0.9rem;
+    }
+    
+    .scan-frame {
+        width: 150px;
+        height: 150px;
+    }
+    
+    .video-controls {
+        bottom: 80px;
+        gap: 10px;
+        padding: 10px;
+    }
+    
+    .control-btn {
+        width: 45px;
+        height: 45px;
+        font-size: 1rem;
+    }
+    
+    .admin-panel {
+        width: 280px;
+        max-height: 60vh;
+        right: 10px;
+        top: 10px;
+    }
+    
+    .admin-toggle {
+        bottom: 15px;
+        right: 15px;
+        width: 45px;
+        height: 45px;
+        font-size: 1.1rem;
+    }
+    
+    .status-display {
+        top: 15px;
+        padding: 8px 16px;
+    }
+    
+    #status-text {
+        font-size: 0.8rem;
+    }
+}
+
+/* 가로 모드 모바일 */
+@media (max-width: 768px) and (orientation: landscape) {
+    .scan-guide {
+        padding: 1rem;
+        max-width: 80%;
+    }
+    
+    .video-controls {
+        bottom: 40px;
+    }
+    
+    .admin-panel {
+        max-height: 50vh;
+        width: 250px;
+    }
+}
+
+/* 터치 최적화 */
+@media (hover: none) and (pointer: coarse) {
+    .control-btn {
+        min-height: 48px;
+        min-width: 48px;
+    }
+    
+    .admin-toggle {
+        min-height: 48px;
+        min-width: 48px;
+    }
+    
+    .admin-controls button {
+        min-height: 40px;
+        padding: 0.6rem 1.2rem;
+    }
+}
+
+/* 고대비 모드 지원 */
+@media (prefers-contrast: high) {
+    .loading-screen {
+        background: #000;
+    }
+    
+    .scan-guide,
+    .video-controls,
+    .status-display,
+    .admin-panel {
+        background: rgba(0, 0, 0, 1);
+        border: 2px solid white;
+    }
+    
+    .scan-frame {
+        border-color: white;
+    }
+}
+
+/* 애니메이션 최소화 */
+@media (prefers-reduced-motion: reduce) {
+    .loading-spinner,
+    .scan-frame,
+    .scan-frame::before {
+        animation: none;
+    }
+    
+    .control-btn,
+    .admin-toggle,
+    .admin-controls button {
+        transition: none;
+    }
+}
+
+/* AR 씬 내 요소들 */
+a-video {
+    pointer-events: none;
+}
+
+/* 커스텀 스크롤바 (웹킷 브라우저) */
+.admin-panel::-webkit-scrollbar {
+    width: 6px;
+}
+
+.admin-panel::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 3px;
+}
+
+.admin-panel::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.3);
+    border-radius: 3px;
+}
+
+.admin-panel::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.5);
+}
+
+/* 로딩 상태 애니메이션 */
+.fade-in {
+    animation: fadeIn 0.5s ease-in;
+}
+
+.fade-out {
+    animation: fadeOut 0.5s ease-out;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes fadeOut {
+    from { opacity: 1; transform: translateY(0); }
+    to { opacity: 0; transform: translateY(-20px); }
+}
+
+/* 오류 상태 */
+.error-state {
+    color: #ff4444 !important;
+}
+
+.error-state .scan-frame {
+    border-color: #ff4444;
+    animation: shake 0.5s ease-in-out;
+}
+
+@keyframes shake {
+    0%, 100% { transform: translateX(0); }
+    25% { transform: translateX(-5px); }
+    75% { transform: translateX(5px); }
+}
+
+/* 성공 상태 */
+.success-state {
+    color: #4CAF50 !important;
+}
+
+.success-state .scan-frame {
+    border-color: #4CAF50;
+    animation: success-pulse 1s ease-in-out;
+}
+
+@keyframes success-pulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.1); box-shadow: 0 0 20px rgba(76, 175, 80, 0.5); }
+    100% { transform: scale(1); }
+} 

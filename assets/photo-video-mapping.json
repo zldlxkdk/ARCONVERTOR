@@ -1,0 +1,75 @@
+{
+  "photoVideoMapping": [
+    {
+      "id": "photo1",
+      "targetIndex": 0,
+      "photoPath": "assets/images/photo1.jpg",
+      "videoPath": "assets/videos/video1.mp4",
+      "youtubeUrl": "https://www.youtube.com/watch?v=MX_UceuxveA",
+      "videoSettings": {
+        "autoplay": true,
+        "muted": true,
+        "loop": true,
+        "playsinline": true,
+        "position": { "x": 0, "y": 0, "z": 0 },
+        "rotation": { "x": -90, "y": 0, "z": 0 },
+        "scale": { "x": 1, "y": 0.5625, "z": 1 },
+        "width": 1,
+        "height": 0.5625
+      }
+    },
+    {
+      "id": "photo2", 
+      "targetIndex": 1,
+      "photoPath": "assets/images/photo2.jpg",
+      "videoPath": "assets/videos/video2.mp4",
+      "youtubeUrl": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+      "videoSettings": {
+        "autoplay": true,
+        "muted": true,
+        "loop": true,
+        "playsinline": true,
+        "position": { "x": 0, "y": 0, "z": 0 },
+        "rotation": { "x": -90, "y": 0, "z": 0 },
+        "scale": { "x": 1, "y": 0.5625, "z": 1 },
+        "width": 1,
+        "height": 0.5625
+      }
+    },
+    {
+      "id": "photo3",
+      "targetIndex": 2, 
+      "photoPath": "assets/images/photo3.jpg",
+      "videoPath": "assets/videos/video3.mp4",
+      "youtubeUrl": "https://www.youtube.com/watch?v=jNQXAC9IVRw",
+      "videoSettings": {
+        "autoplay": true,
+        "muted": true,
+        "loop": true,
+        "playsinline": true,
+        "position": { "x": 0, "y": 0, "z": 0 },
+        "rotation": { "x": -90, "y": 0, "z": 0 },
+        "scale": { "x": 1, "y": 0.5625, "z": 1 },
+        "width": 1,
+        "height": 0.5625
+      }
+    }
+  ],
+  "arSettings": {
+    "targetImageSrc": "assets/targets.mind",
+    "uiLoading": "yes",
+    "uiError": "yes",
+    "uiScanning": "yes",
+    "cameraFacing": "environment"
+  },
+  "videoPresets": {
+    "default": {
+      "autoplay": true,
+      "muted": true,
+      "loop": true,
+      "playsinline": true,
+      "webkit-playsinline": true,
+      "crossorigin": "anonymous"
+    }
+  }
+} 

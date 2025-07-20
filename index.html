@@ -3,129 +3,91 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AR 이미지 생성기 - 비디오 오버레이</title>
+    <title>WebAR 포토 오버레이 시스템</title>
     
-    <!-- 외부 라이브러리 -->
+    <!-- WebAR 라이브러리 -->
     <script src="https://aframe.io/releases/1.4.0/aframe.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.2/dist/mindar-image-aframe.prod.js"></script>
     
-    <!-- 내부 CSS -->
-    <link rel="stylesheet" href="styles/main.css">
+    <!-- WebAR 시스템 CSS -->
+    <link rel="stylesheet" href="styles/webaar-main.css">
 </head>
 <body>
-    <div class="container">
-        <!-- 모드 전환 -->
-        <div class="mode-switch">
-            <h2>🎯 AR 이미지 생성기</h2>
-            <div class="mode-toggle">
-                <button class="mode-btn active" onclick="switchMode('create')">📹 이미지 생성</button>
-                <button class="mode-btn" onclick="switchMode('scan')">🔍 AR 스캔</button>
-            </div>
-        </div>
-
-        <!-- 이미지 생성 모드 -->
-        <div id="createMode" class="create-mode active">
-            <!-- 1단계: 비디오 업로드 -->
-            <div class="step active" id="step1">
-                <div class="step-title">
-                    <div class="step-number">1</div>
-                    비디오 업로드
-                </div>
-                <div class="upload-area" onclick="document.getElementById('videoInput').click()">
-                    <div class="upload-icon">📹</div>
-                    <div class="upload-text">클릭하여 비디오 파일 선택</div>
-                </div>
-                <input type="file" id="videoInput" class="file-input" accept="video/*" onchange="handleVideoUpload(event)">
-                <video id="videoPreview" class="preview-video" controls style="display: none;"></video>
-            </div>
-
-            <!-- 2단계: 프레임 추출 -->
-            <div class="step" id="step2">
-                <div class="step-title">
-                    <div class="step-number">2</div>
-                    프레임 추출
-                </div>
-                <div class="frame-extraction-info">
-                    <p>비디오에서 AR 이미지로 사용할 프레임을 선택하세요.</p>
-                    <p>추천: 명확하고 대비가 좋은 장면을 선택하세요.</p>
-                </div>
-                <div class="video-editor">
-                    <div class="video-controls">
-                        <input type="range" id="timeSlider" class="time-slider" min="0" max="100" value="0" oninput="updateVideoTime()">
-                        <span id="timeDisplay" class="time-display">00:00</span>
-                    </div>
-                    <canvas id="frameCanvas" class="trim-preview"></canvas>
-                </div>
-                <button class="btn" onclick="extractFrame()">프레임 추출</button>
-            </div>
-
-            <!-- 3단계: AR 이미지 생성 -->
-            <div class="step" id="step3">
-                <div class="step-title">
-                    <div class="step-number">3</div>
-                    AR 이미지 생성
-                </div>
-                <div class="target-image-container">
-                    <img id="targetImage" class="target-image" style="display: none;">
-                </div>
-                <button class="btn" onclick="generateARImage()" id="generateBtn" disabled>AR 이미지 생성</button>
-            </div>
-
-            <!-- 4단계: 다운로드 -->
-            <div class="step" id="step4">
-                <div class="step-title">
-                    <div class="step-number">4</div>
-                    다운로드
-                </div>
-                <div class="download-section">
-                    <button class="btn download-btn" onclick="downloadTarget()" id="downloadBtn" disabled>📥 다운로드</button>
-                    <button class="btn download-btn share-btn" onclick="shareTarget()" id="shareBtn" disabled>📤 공유</button>
+    <!-- WebAR 메인 컨테이너 -->
+    <div class="webaar-container">
+        <!-- AR 씬 -->
+        <a-scene 
+            mindar-image="imageTargetSrc: ./assets/targets.mind; uiLoading: yes; uiError: yes; uiScanning: yes;"
+            color-space="sRGB" 
+            renderer="colorManagement: true, physicallyCorrectLights"
+            vr-mode-ui="enabled: false" 
+            device-orientation-permission-ui="enabled: false"
+            embedded
+            style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 1;">
+            
+            <!-- 에셋 정의 -->
+            <a-assets>
+                <!-- 비디오 에셋들 (동적으로 생성됨) -->
+            </a-assets>
+            
+            <!-- AR 카메라 -->
+            <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
+            
+            <!-- AR 타겟들 (동적으로 생성됨) -->
+        </a-scene>
+        
+        <!-- UI 오버레이 -->
+        <div class="ui-overlay">
+            <!-- 로딩 화면 -->
+            <div id="loading-screen" class="loading-screen">
+                <div class="loading-content">
+                    <div class="loading-spinner"></div>
+                    <h2>📸 WebAR 포토 오버레이</h2>
+                    <p>카메라 초기화 중...</p>
                 </div>
             </div>
-        </div>
-
-        <!-- AR 스캔 모드 -->
-        <div id="scanMode" class="scan-mode">
-            <div class="step">
-                <div class="step-title">
-                    <div class="step-number">🔍</div>
-                    AR 이미지 스캔
+            
+            <!-- 스캔 안내 -->
+            <div id="scan-guide" class="scan-guide" style="display: none;">
+                <div class="guide-content">
+                    <h3>📱 사진을 카메라에 비춰주세요</h3>
+                    <p>등록된 사진을 인식하면 동영상이 자동 재생됩니다</p>
+                    <div class="scan-frame"></div>
                 </div>
-                <div class="scan-info">
-                    <p>생성된 AR 이미지를 카메라에 비춰주세요.</p>
-                    <p>자동으로 이미지를 인식하여 AR 영상을 재생합니다.</p>
-                </div>
-                <button class="btn" id="scanStartBtn">🔍 스캔 시작</button>
+            </div>
+            
+            <!-- 비디오 컨트롤 -->
+            <div id="video-controls" class="video-controls" style="display: none;">
+                <button id="muteBtn" class="control-btn">🔊</button>
+                <button id="fullscreenBtn" class="control-btn">⛶</button>
+                <button id="closeBtn" class="control-btn">✕</button>
+            </div>
+            
+            <!-- 상태 표시 -->
+            <div id="status-display" class="status-display">
+                <span id="status-text">시스템 초기화 중...</span>
             </div>
         </div>
     </div>
-
-    <!-- AR 뷰어 -->
-    <div class="ar-viewer" id="arViewer">
-        <div class="ar-controls">
-            <div class="ar-status" id="arStatus">AR 로딩 중...</div>
-            <button class="ar-close" onclick="closeAR()">✕</button>
+    
+    <!-- 관리자 패널 (개발/테스트용) -->
+    <div id="admin-panel" class="admin-panel" style="display: none;">
+        <h4>🛠️ 관리자 패널</h4>
+        <div class="admin-controls">
+            <button onclick="toggleAdminPanel()">패널 숨기기</button>
+            <button onclick="reloadPhotoMappings()">매핑 새로고침</button>
+            <button onclick="testARSystem()">AR 시스템 테스트</button>
         </div>
-        <div class="ar-scene-container">
-            <!-- AR Scene은 필요할 때만 동적으로 생성됨 -->
-        </div>
-    </div>
-
-    <!-- 전체 화면 스캐너 -->
-    <div class="fullscreen-scanner" id="fullscreenScanner">
-        <div class="scanner-controls-fullscreen">
-            <div class="scan-status-fullscreen" id="scanStatusFullscreen">카메라 접근 중...</div>
-            <button class="scan-close-btn" onclick="closeFullscreenScan()">✕</button>
-        </div>
-        <video id="scannerVideoFullscreen" class="scanner-video-fullscreen" autoplay muted playsinline></video>
-        <div class="scanner-overlay-fullscreen"></div>
-        <div class="scan-instructions-fullscreen" id="scanInstructionsFullscreen">
-            📱 카메라를 AR 이미지에 비춰주세요<br>
-            <span style="opacity: 0.7;">자동으로 이미지를 찾아서 분석합니다</span>
+        <div class="mapping-list">
+            <h5>등록된 사진-영상 매핑:</h5>
+            <ul id="mapping-list"></ul>
         </div>
     </div>
-
-    <!-- 내부 JavaScript -->
-    <script src="js/main.js"></script>
+    
+    <!-- 관리자 패널 토글 버튼 -->
+    <button id="admin-toggle" class="admin-toggle" onclick="toggleAdminPanel()">⚙️</button>
+    
+    <!-- WebAR 시스템 JavaScript -->
+    <script src="js/webaar-system.js"></script>
 </body>
 </html> 
