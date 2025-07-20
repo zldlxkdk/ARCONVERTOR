@@ -2697,7 +2697,7 @@
         }
 
         function startARImageTracking(arData, framePosition, overlayVideo, overlayFrame) {
-            console.log('AR 이미지 추적 시뮬레이션 시작');
+            console.log('지속적 AR 이미지 추적 시스템 시작');
             
             if (!window.arImageMapping) {
                 console.warn('AR 이미지 매핑 정보가 없습니다');
@@ -2707,53 +2707,273 @@
             const mapping = window.arImageMapping;
             let trackingOffset = 0;
             let cameraMovementOffset = 0;
+            let lastCameraPosition = { x: 0, y: 0 };
+            let currentARPosition = { x: mapping.imageLeft, y: mapping.imageTop };
+            
+            // 디바이스 방향 및 움직임 감지 시작
+            startDeviceMotionTracking();
             
             const trackingAnimation = setInterval(() => {
-                trackingOffset += 0.05;
-                cameraMovementOffset += 0.02;
+                trackingOffset += 0.03;
+                cameraMovementOffset += 0.01;
                 
-                // 실제 AR에서 일어나는 자연스러운 추적 움직임 시뮬레이션
-                const trackingJitterX = Math.sin(trackingOffset) * 1.5;
-                const trackingJitterY = Math.cos(trackingOffset * 1.2) * 1;
+                // 실제 AR에서 일어나는 미세한 추적 떨림
+                const microJitterX = Math.sin(trackingOffset * 8) * 0.5;
+                const microJitterY = Math.cos(trackingOffset * 6) * 0.3;
                 
-                // 카메라 위치 변화로 인한 이미지 위치 이동 시뮬레이션
-                const cameraMovementX = Math.sin(cameraMovementOffset * 0.5) * 8;
-                const cameraMovementY = Math.cos(cameraMovementOffset * 0.3) * 6;
+                // 카메라 움직임에 따른 AR 이미지 위치 변화 (더 현실적)
+                const cameraMovementX = Math.sin(cameraMovementOffset * 0.7) * 15;
+                const cameraMovementY = Math.cos(cameraMovementOffset * 0.5) * 12;
                 
-                // 총 오프셋 계산
-                const totalOffsetX = trackingJitterX + cameraMovementX;
-                const totalOffsetY = trackingJitterY + cameraMovementY;
+                // 디바이스 모션이 감지되면 더 큰 움직임 적용
+                let deviceOffsetX = 0;
+                let deviceOffsetY = 0;
+                if (window.deviceMotionData) {
+                    deviceOffsetX = window.deviceMotionData.tiltX * 2;
+                    deviceOffsetY = window.deviceMotionData.tiltY * 2;
+                }
                 
-                // 비디오 위치 업데이트 (AR 이미지를 따라 이동)
-                const newVideoLeft = mapping.imageLeft + totalOffsetX;
-                const newVideoTop = mapping.imageTop + totalOffsetY;
+                // 총 오프셋 계산 (모든 움직임 합산)
+                const totalOffsetX = microJitterX + cameraMovementX + deviceOffsetX;
+                const totalOffsetY = microJitterY + cameraMovementY + deviceOffsetY;
                 
-                overlayVideo.style.left = newVideoLeft + 'px';
-                overlayVideo.style.top = newVideoTop + 'px';
+                // AR 이미지의 새로운 위치 계산
+                currentARPosition.x = mapping.imageLeft + totalOffsetX;
+                currentARPosition.y = mapping.imageTop + totalOffsetY;
                 
-                // 프레임도 함께 이동
-                const frameMargin = 10;
-                overlayFrame.style.left = (newVideoLeft - frameMargin) + 'px';
-                overlayFrame.style.top = (newVideoTop - frameMargin) + 'px';
+                // 비디오를 AR 이미지 위치에 정확히 배치
+                overlayVideo.style.left = currentARPosition.x + 'px';
+                overlayVideo.style.top = currentARPosition.y + 'px';
                 
-                // 화면 경계를 벗어나면 투명도 조절 (실제 AR에서 이미지가 화면을 벗어날 때처럼)
-                const videoRight = newVideoLeft + mapping.detectedImageWidth;
-                const videoBottom = newVideoTop + mapping.detectedImageHeight;
+                // 프레임도 AR 이미지를 따라 이동
+                if (overlayFrame) {
+                    const frameMargin = 10;
+                    overlayFrame.style.left = (currentARPosition.x - frameMargin) + 'px';
+                    overlayFrame.style.top = (currentARPosition.y - frameMargin) + 'px';
+                }
                 
+                // 화면 경계 처리 (AR 이미지가 화면을 벗어날 때)
+                const videoRight = currentARPosition.x + mapping.detectedImageWidth;
+                const videoBottom = currentARPosition.y + mapping.detectedImageHeight;
+                const screenWidth = window.innerWidth;
+                const screenHeight = window.innerHeight;
+                
+                // 투명도 계산 (화면 경계에서 서서히 사라짐)
                 let opacity = 1;
-                if (newVideoLeft < -50 || newVideoTop < -50 || 
-                    videoRight > window.innerWidth + 50 || 
-                    videoBottom > window.innerHeight + 50) {
-                    opacity = Math.max(0.3, 1 - Math.abs(totalOffsetX + totalOffsetY) / 100);
+                const fadeMargin = 50;
+                
+                if (currentARPosition.x < -fadeMargin) {
+                    opacity = Math.max(0, 1 + currentARPosition.x / fadeMargin);
+                } else if (videoRight > screenWidth + fadeMargin) {
+                    opacity = Math.max(0, 1 - (videoRight - screenWidth) / fadeMargin);
+                }
+                
+                if (currentARPosition.y < -fadeMargin) {
+                    opacity = Math.min(opacity, Math.max(0, 1 + currentARPosition.y / fadeMargin));
+                } else if (videoBottom > screenHeight + fadeMargin) {
+                    opacity = Math.min(opacity, Math.max(0, 1 - (videoBottom - screenHeight) / fadeMargin));
                 }
                 
                 overlayVideo.style.opacity = opacity;
-                overlayFrame.style.opacity = opacity;
+                if (overlayFrame) {
+                    overlayFrame.style.opacity = opacity * 0.8; // 프레임은 조금 더 투명하게
+                }
                 
-            }, 50);
+                // AR 추적 상태 표시
+                if (opacity > 0.8) {
+                    document.getElementById('arStatus').textContent = '🎯 AR 이미지 추적 중 (안정)';
+                } else if (opacity > 0.3) {
+                    document.getElementById('arStatus').textContent = '⚠️ AR 이미지 부분 추적 중';
+                } else {
+                    document.getElementById('arStatus').textContent = '❌ AR 이미지 추적 손실';
+                }
+                
+            }, 16); // 60fps로 부드러운 추적
             
             // 정리 함수 저장
             window.currentTrackingAnimation = trackingAnimation;
+        }
+        
+        function startDeviceMotionTracking() {
+            console.log('디바이스 모션 추적 시작');
+            
+            // 초기화
+            window.deviceMotionData = { tiltX: 0, tiltY: 0 };
+            
+            // 디바이스 방향 변화 감지
+            if (window.DeviceOrientationEvent) {
+                window.addEventListener('deviceorientation', (event) => {
+                    // 베타: 전후 기울기 (-180 ~ 180)
+                    // 감마: 좌우 기울기 (-90 ~ 90)
+                    const beta = event.beta || 0;
+                    const gamma = event.gamma || 0;
+                    
+                    // AR 이미지 위치 변화로 변환 (더 부드럽게)
+                    window.deviceMotionData.tiltX = Math.max(-20, Math.min(20, gamma * 0.8));
+                    window.deviceMotionData.tiltY = Math.max(-20, Math.min(20, (beta - 90) * 0.5));
+                });
+            }
+            
+            // 디바이스 모션 감지 (가속도계)
+            if (window.DeviceMotionEvent) {
+                window.addEventListener('devicemotion', (event) => {
+                    const acceleration = event.accelerationIncludingGravity;
+                    if (acceleration) {
+                        // 가속도 변화를 AR 이미지 위치 변화로 변환
+                        const accelX = acceleration.x || 0;
+                        const accelY = acceleration.y || 0;
+                        
+                        // 기존 기울기 데이터와 결합 (더 자연스러운 움직임)
+                        window.deviceMotionData.tiltX += accelX * 0.1;
+                        window.deviceMotionData.tiltY += accelY * 0.1;
+                        
+                        // 범위 제한
+                        window.deviceMotionData.tiltX = Math.max(-30, Math.min(30, window.deviceMotionData.tiltX));
+                        window.deviceMotionData.tiltY = Math.max(-30, Math.min(30, window.deviceMotionData.tiltY));
+                    }
+                });
+            }
+            
+            // 마우스/터치 움직임도 카메라 움직임으로 시뮬레이션 (데스크톱용)
+            let lastMouseX = 0;
+            let lastMouseY = 0;
+            let mouseMovement = { x: 0, y: 0 };
+            
+            document.addEventListener('mousemove', (event) => {
+                const deltaX = event.clientX - lastMouseX;
+                const deltaY = event.clientY - lastMouseY;
+                
+                // 마우스 움직임을 카메라 움직임으로 변환
+                mouseMovement.x += deltaX * 0.05;
+                mouseMovement.y += deltaY * 0.05;
+                
+                // 감쇠 효과
+                mouseMovement.x *= 0.95;
+                mouseMovement.y *= 0.95;
+                
+                // 디바이스 모션 데이터에 추가
+                window.deviceMotionData.tiltX += mouseMovement.x;
+                window.deviceMotionData.tiltY += mouseMovement.y;
+                
+                // 범위 제한
+                window.deviceMotionData.tiltX = Math.max(-40, Math.min(40, window.deviceMotionData.tiltX));
+                window.deviceMotionData.tiltY = Math.max(-40, Math.min(40, window.deviceMotionData.tiltY));
+                
+                lastMouseX = event.clientX;
+                lastMouseY = event.clientY;
+            });
+            
+            // 터치 움직임 처리 (모바일용)
+            let lastTouchX = 0;
+            let lastTouchY = 0;
+            
+            document.addEventListener('touchmove', (event) => {
+                if (event.touches.length > 0) {
+                    const touch = event.touches[0];
+                    const deltaX = touch.clientX - lastTouchX;
+                    const deltaY = touch.clientY - lastTouchY;
+                    
+                    // 터치 움직임을 카메라 움직임으로 변환
+                    window.deviceMotionData.tiltX += deltaX * 0.03;
+                    window.deviceMotionData.tiltY += deltaY * 0.03;
+                    
+                    // 범위 제한
+                    window.deviceMotionData.tiltX = Math.max(-30, Math.min(30, window.deviceMotionData.tiltX));
+                    window.deviceMotionData.tiltY = Math.max(-30, Math.min(30, window.deviceMotionData.tiltY));
+                    
+                    lastTouchX = touch.clientX;
+                    lastTouchY = touch.clientY;
+                }
+            });
+        }
+
+        function startARImageTrackingForYouTube(arData, framePosition, youtubeOverlay) {
+            console.log('YouTube 오버레이 AR 추적 시작');
+            
+            if (!window.arImageMapping) {
+                console.warn('AR 이미지 매핑 정보가 없습니다');
+                return;
+            }
+            
+            const mapping = window.arImageMapping;
+            let trackingOffset = 0;
+            let cameraMovementOffset = 0;
+            let currentARPosition = { x: mapping.imageLeft, y: mapping.imageTop };
+            
+            // 디바이스 모션 추적이 시작되지 않았다면 시작
+            if (!window.deviceMotionData) {
+                startDeviceMotionTracking();
+            }
+            
+            const trackingAnimation = setInterval(() => {
+                trackingOffset += 0.03;
+                cameraMovementOffset += 0.01;
+                
+                // 실제 AR에서 일어나는 미세한 추적 떨림
+                const microJitterX = Math.sin(trackingOffset * 8) * 0.5;
+                const microJitterY = Math.cos(trackingOffset * 6) * 0.3;
+                
+                // 카메라 움직임에 따른 AR 이미지 위치 변화
+                const cameraMovementX = Math.sin(cameraMovementOffset * 0.7) * 15;
+                const cameraMovementY = Math.cos(cameraMovementOffset * 0.5) * 12;
+                
+                // 디바이스 모션이 감지되면 더 큰 움직임 적용
+                let deviceOffsetX = 0;
+                let deviceOffsetY = 0;
+                if (window.deviceMotionData) {
+                    deviceOffsetX = window.deviceMotionData.tiltX * 2;
+                    deviceOffsetY = window.deviceMotionData.tiltY * 2;
+                }
+                
+                // 총 오프셋 계산
+                const totalOffsetX = microJitterX + cameraMovementX + deviceOffsetX;
+                const totalOffsetY = microJitterY + cameraMovementY + deviceOffsetY;
+                
+                // AR 이미지의 새로운 위치 계산
+                currentARPosition.x = mapping.imageLeft + totalOffsetX;
+                currentARPosition.y = mapping.imageTop + totalOffsetY;
+                
+                // YouTube 오버레이를 AR 이미지 위치에 정확히 배치
+                youtubeOverlay.style.left = currentARPosition.x + 'px';
+                youtubeOverlay.style.top = currentARPosition.y + 'px';
+                
+                // 화면 경계 처리
+                const overlayRight = currentARPosition.x + mapping.detectedImageWidth;
+                const overlayBottom = currentARPosition.y + mapping.detectedImageHeight;
+                const screenWidth = window.innerWidth;
+                const screenHeight = window.innerHeight;
+                
+                // 투명도 계산
+                let opacity = 1;
+                const fadeMargin = 50;
+                
+                if (currentARPosition.x < -fadeMargin) {
+                    opacity = Math.max(0, 1 + currentARPosition.x / fadeMargin);
+                } else if (overlayRight > screenWidth + fadeMargin) {
+                    opacity = Math.max(0, 1 - (overlayRight - screenWidth) / fadeMargin);
+                }
+                
+                if (currentARPosition.y < -fadeMargin) {
+                    opacity = Math.min(opacity, Math.max(0, 1 + currentARPosition.y / fadeMargin));
+                } else if (overlayBottom > screenHeight + fadeMargin) {
+                    opacity = Math.min(opacity, Math.max(0, 1 - (overlayBottom - screenHeight) / fadeMargin));
+                }
+                
+                youtubeOverlay.style.opacity = opacity;
+                
+                // AR 추적 상태 표시
+                if (opacity > 0.8) {
+                    document.getElementById('arStatus').textContent = '🎯 AR YouTube 추적 중 (안정)';
+                } else if (opacity > 0.3) {
+                    document.getElementById('arStatus').textContent = '⚠️ AR YouTube 부분 추적 중';
+                } else {
+                    document.getElementById('arStatus').textContent = '❌ AR YouTube 추적 손실';
+                }
+                
+            }, 16); // 60fps로 부드러운 추적
+            
+            // 정리 함수 저장 (YouTube용)
+            window.currentYouTubeTrackingAnimation = trackingAnimation;
         }
 
         function showYouTubeOverlayAtImageArea(arData, framePosition) {
@@ -2807,7 +3027,7 @@
             
             // AR 이미지 추적 시뮬레이션 (YouTube도 이미지를 따라 이동)
             if (window.arImageMapping) {
-                startARImageTracking(arData, framePosition, youtubeOverlay, null);
+                startARImageTrackingForYouTube(arData, framePosition, youtubeOverlay);
             }
         }
 
@@ -3660,6 +3880,17 @@
             if (window.currentTrackingAnimation) {
                 clearInterval(window.currentTrackingAnimation);
                 window.currentTrackingAnimation = null;
+            }
+            
+            // YouTube 트래킹 애니메이션 정리
+            if (window.currentYouTubeTrackingAnimation) {
+                clearInterval(window.currentYouTubeTrackingAnimation);
+                window.currentYouTubeTrackingAnimation = null;
+            }
+            
+            // 디바이스 모션 데이터 정리
+            if (window.deviceMotionData) {
+                window.deviceMotionData = null;
             }
             
             // 페이지 스크롤 해제
