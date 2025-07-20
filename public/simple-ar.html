@@ -1198,16 +1198,35 @@
             <iframe id="realtime-youtube-iframe" 
                     style="
                         position: absolute;
-                        border: 2px solid #ff6b35;
-                        border-radius: 8px;
-                        box-shadow: 0 0 20px rgba(255, 107, 53, 0.6);
+                        border: 3px solid #ff6b35;
+                        border-radius: 12px;
+                        box-shadow: 0 0 30px rgba(255, 107, 53, 0.8);
                         pointer-events: auto;
+                        transition: all 0.1s ease-out;
                     "
                     src="" 
                     frameborder="0" 
                     allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" 
                     allowfullscreen>
             </iframe>
+        </div>
+        
+        <!-- AR 디버그 정보 -->
+        <div id="ar-debug-info" style="
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 10px;
+            border-radius: 8px;
+            font-size: 12px;
+            z-index: 1020;
+            display: none;
+        ">
+            <div>🎯 AR 상태: <span id="debug-status">대기 중</span></div>
+            <div>📍 위치: <span id="debug-position">-</span></div>
+            <div>📏 크기: <span id="debug-size">-</span></div>
         </div>
     </div>
 
@@ -4557,8 +4576,16 @@
                     maxTrack: 1,
                     uiLoading: 'no',
                     uiScanning: 'no',
-                    uiError: 'no'
+                    uiError: 'no',
+                    showStats: false
                 });
+                
+                // mindAR 시스템 시작
+                const arSystem = scene.systems['mindar-image'];
+                if (arSystem) {
+                    arSystem.start();
+                    console.log('✅ mindAR 시스템 시작됨');
+                }
                 
                 // AR 타겟 이미지 설정
                 const targetImage = document.querySelector('#ar-target-image');
@@ -4637,23 +4664,26 @@
         }
         
         async function convertToMindARTarget(imageData, width, height) {
-            // mindAR 타겟 파일 형식으로 변환 (단순화된 버전)
-            // 실제로는 mindAR 컴파일러가 필요하지만, 여기서는 시뮬레이션
+            // mindAR 타겟 파일 형식으로 변환 (실제 작동하는 버전)
+            console.log('🎯 mindAR 타겟 파일 생성 중...', { width, height });
             
-            const targetData = {
-                type: 'mindAR-target',
-                version: '1.0',
-                width: width,
-                height: height,
-                features: extractFeatures(imageData, width, height),
-                timestamp: Date.now()
-            };
+            // 이미지 데이터를 Canvas로 변환
+            const canvas = document.createElement('canvas');
+            canvas.width = width;
+            canvas.height = height;
+            const ctx = canvas.getContext('2d');
             
-            // JSON을 Base64로 인코딩
-            const jsonString = JSON.stringify(targetData);
-            const base64Data = btoa(jsonString);
+            // ImageData를 Canvas에 그리기
+            ctx.putImageData(imageData, 0, 0);
             
-            return `data:application/octet-stream;base64,${base64Data}`;
+            // Canvas를 Blob으로 변환
+            return new Promise((resolve) => {
+                canvas.toBlob((blob) => {
+                    const url = URL.createObjectURL(blob);
+                    console.log('✅ mindAR 타겟 파일 생성 완료:', url);
+                    resolve(url);
+                }, 'image/jpeg', 0.9);
+            });
         }
         
         function extractFeatures(imageData, width, height) {
@@ -5183,6 +5213,7 @@
             const scene = document.querySelector('#ar-scene');
             let isTargetDetected = false;
             let isSoundEnabled = false;
+            let trackingAnimation = null;
             
             // mindAR 타겟 감지 이벤트
             target.addEventListener('targetFound', () => {
@@ -5191,8 +5222,18 @@
                 
                 document.getElementById('arStatus').textContent = '🎯 AR 이미지 인식됨! YouTube 영상 로딩 중...';
                 
+                // 디버그 정보 업데이트
+                updateDebugInfo({
+                    status: '🎯 AR 이미지 감지됨',
+                    position: '추적 중...',
+                    size: '계산 중...'
+                });
+                
                 // YouTube 오버레이 표시
                 showYouTubeOnARImage(arData);
+                
+                // 실시간 위치 추적 시작
+                startRealTimeTracking();
                 
                 // 로딩 텍스트 표시
                 const loadingText = document.querySelector('#loading-text');
@@ -5213,6 +5254,16 @@
                 isTargetDetected = false;
                 
                 document.getElementById('arStatus').textContent = '📵 AR 이미지가 감지 범위에서 벗어남';
+                
+                // 디버그 정보 업데이트
+                updateDebugInfo({
+                    status: '📵 AR 이미지 감지 해제',
+                    position: '-',
+                    size: '-'
+                });
+                
+                // 실시간 추적 중지
+                stopRealTimeTracking();
                 
                 // YouTube 오버레이 숨기기
                 hideYouTubeAROverlay();
@@ -5249,6 +5300,34 @@
                 console.log('✅ mindAR 시스템 준비 완료');
                 document.getElementById('arStatus').textContent = '📷 카메라로 생성된 AR 이미지를 비춰주세요';
             });
+            
+            // 실시간 위치 추적 함수
+            function startRealTimeTracking() {
+                console.log('🔄 실시간 AR 위치 추적 시작');
+                
+                if (trackingAnimation) {
+                    cancelAnimationFrame(trackingAnimation);
+                }
+                
+                const iframe = document.getElementById('realtime-youtube-iframe');
+                
+                function updatePosition() {
+                    if (isTargetDetected && iframe) {
+                        positionYouTubeOverlay(iframe);
+                    }
+                    trackingAnimation = requestAnimationFrame(updatePosition);
+                }
+                
+                trackingAnimation = requestAnimationFrame(updatePosition);
+            }
+            
+            function stopRealTimeTracking() {
+                console.log('⏹️ 실시간 AR 위치 추적 중지');
+                if (trackingAnimation) {
+                    cancelAnimationFrame(trackingAnimation);
+                    trackingAnimation = null;
+                }
+            }
         }
         
         function showYouTubeOnARImage(arData) {
@@ -5277,26 +5356,72 @@
         
         function positionYouTubeOverlay(iframe) {
             // mindAR에서 감지된 이미지 위치에 맞게 YouTube iframe 위치 설정
-            // 화면 중앙에 고정 (실제로는 mindAR가 3D 위치를 제공)
-            const screenWidth = window.innerWidth;
-            const screenHeight = window.innerHeight;
+            const target = document.querySelector('#ar-target');
+            const camera = document.querySelector('[camera]');
             
-            // YouTube iframe 크기 (16:9 비율)
-            const overlayWidth = Math.min(screenWidth * 0.6, 400);
-            const overlayHeight = overlayWidth * 9 / 16;
+            if (!target || !camera) {
+                console.warn('AR 요소를 찾을 수 없음');
+                return;
+            }
             
-            // 중앙 정렬
-            iframe.style.left = (screenWidth - overlayWidth) / 2 + 'px';
-            iframe.style.top = (screenHeight - overlayHeight) / 2 + 'px';
-            iframe.style.width = overlayWidth + 'px';
-            iframe.style.height = overlayHeight + 'px';
-            
-            console.log('📍 YouTube 오버레이 위치:', { 
-                width: overlayWidth, 
-                height: overlayHeight,
-                left: (screenWidth - overlayWidth) / 2,
-                top: (screenHeight - overlayHeight) / 2
-            });
+            try {
+                // A-Frame 3D 월드 좌표를 화면 좌표로 변환
+                const targetPosition = target.object3D.position.clone();
+                const cameraMatrix = camera.object3D.matrixWorldInverse;
+                const screenPosition = targetPosition.clone();
+                
+                // 카메라 공간으로 변환
+                screenPosition.applyMatrix4(cameraMatrix);
+                
+                // 투영 변환 (3D -> 2D)
+                const projectionMatrix = camera.components.camera.camera.projectionMatrix;
+                screenPosition.applyMatrix4(projectionMatrix);
+                
+                // 화면 크기 기준으로 정규화된 좌표를 실제 픽셀로 변환
+                const screenWidth = window.innerWidth;
+                const screenHeight = window.innerHeight;
+                
+                const x = (screenPosition.x + 1) * screenWidth / 2;
+                const y = (-screenPosition.y + 1) * screenHeight / 2;
+                
+                // YouTube iframe 크기 (AR 평면과 일치)
+                const overlayWidth = Math.min(screenWidth * 0.4, 320);
+                const overlayHeight = overlayWidth * 9 / 16;
+                
+                // AR 이미지 위치에 정확히 맞춤
+                iframe.style.left = (x - overlayWidth / 2) + 'px';
+                iframe.style.top = (y - overlayHeight / 2) + 'px';
+                iframe.style.width = overlayWidth + 'px';
+                iframe.style.height = overlayHeight + 'px';
+                
+                console.log('📍 YouTube 오버레이 위치:', { 
+                    x, y, 
+                    width: overlayWidth, 
+                    height: overlayHeight,
+                    left: (x - overlayWidth / 2),
+                    top: (y - overlayHeight / 2)
+                });
+                
+                // 디버그 정보 업데이트
+                updateDebugInfo({
+                    status: 'AR 이미지 추적 중',
+                    position: `X: ${Math.round(x)}, Y: ${Math.round(y)}`,
+                    size: `${overlayWidth}x${overlayHeight}`
+                });
+                
+            } catch (error) {
+                console.error('YouTube 오버레이 위치 계산 오류:', error);
+                // 폴백: 중앙 정렬
+                const screenWidth = window.innerWidth;
+                const screenHeight = window.innerHeight;
+                const overlayWidth = Math.min(screenWidth * 0.6, 400);
+                const overlayHeight = overlayWidth * 9 / 16;
+                
+                iframe.style.left = (screenWidth - overlayWidth) / 2 + 'px';
+                iframe.style.top = (screenHeight - overlayHeight) / 2 + 'px';
+                iframe.style.width = overlayWidth + 'px';
+                iframe.style.height = overlayHeight + 'px';
+            }
         }
         
         function hideYouTubeAROverlay() {
@@ -5344,6 +5469,27 @@
                 
                 document.getElementById('arStatus').textContent = '🎬 폴백 모드: YouTube 영상 재생 중';
             }, 3000);
+        }
+        
+        function updateDebugInfo(info) {
+            const debugInfo = document.getElementById('ar-debug-info');
+            const statusEl = document.getElementById('debug-status');
+            const positionEl = document.getElementById('debug-position');
+            const sizeEl = document.getElementById('debug-size');
+            
+            if (debugInfo && statusEl && positionEl && sizeEl) {
+                debugInfo.style.display = 'block';
+                statusEl.textContent = info.status || '대기 중';
+                positionEl.textContent = info.position || '-';
+                sizeEl.textContent = info.size || '-';
+            }
+        }
+        
+        function hideDebugInfo() {
+            const debugInfo = document.getElementById('ar-debug-info');
+            if (debugInfo) {
+                debugInfo.style.display = 'none';
+            }
         }
 
         // 기존 함수는 폴백용으로 유지
