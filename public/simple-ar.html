@@ -1728,6 +1728,15 @@
                             
                             console.log('🖼️ 중앙 이미지 그리기 완료');
                         
+                        // 고유 ID 생성 및 스테가노그래피 패턴 삽입
+                        const uniqueId = generateUniqueId();
+                        insertSteganographyPattern(ctx, arSize, arSize, uniqueId);
+                        
+                        // 마이크로 도트 패턴 삽입
+                        insertMicroDotPattern(ctx, arSize, arSize, uniqueId);
+                        
+                        console.log(`🔐 스테가노그래피 패턴 삽입 완료: ${uniqueId}`);
+                        
                         // === 특수 AR 마커 시스템 ===
                         
                         // 1. 메인 테두리 (이중 테두리로 인식률 향상)
@@ -2716,7 +2725,7 @@
         function compareImages(img1DataURL, img2DataURL) {
             return new Promise((resolve) => {
                 try {
-                    console.log('🔍 실제 이미지 픽셀 비교 시작');
+                    console.log('🔍 스테가노그래피 패턴 분석 시작');
                     
                     if (!img1DataURL || !img2DataURL) {
                         console.warn('이미지 데이터가 없습니다');
@@ -2732,66 +2741,54 @@
                     const img1 = new Image();
                     const img2 = new Image();
                     
-                    // 캔버스 크기 설정 (성능을 위해 작게)
-                    canvas1.width = canvas2.width = 200;
-                    canvas1.height = canvas2.height = 200;
+                    // 캔버스 크기 설정 (스테가노그래피 분석을 위해 충분한 크기)
+                    canvas1.width = canvas2.width = 400;
+                    canvas1.height = canvas2.height = 400;
                     
                     let img1Loaded = false;
                     let img2Loaded = false;
                     
                     img1.onload = () => {
-                        ctx1.drawImage(img1, 0, 0, 200, 200);
+                        ctx1.drawImage(img1, 0, 0, 400, 400);
                         img1Loaded = true;
-                        if (img2Loaded) performComparison();
+                        if (img2Loaded) performSteganographyAnalysis();
                     };
                     
                     img2.onload = () => {
-                        ctx2.drawImage(img2, 0, 0, 200, 200);
+                        ctx2.drawImage(img2, 0, 0, 400, 400);
                         img2Loaded = true;
-                        if (img1Loaded) performComparison();
+                        if (img1Loaded) performSteganographyAnalysis();
                     };
                     
-                    function performComparison() {
+                    function performSteganographyAnalysis() {
                         try {
-                            const data1 = ctx1.getImageData(0, 0, 200, 200).data;
-                            const data2 = ctx2.getImageData(0, 0, 200, 200).data;
+                            const data1 = ctx1.getImageData(0, 0, 400, 400).data;
+                            const data2 = ctx2.getImageData(0, 0, 400, 400).data;
                             
-                            let matchingPixels = 0;
-                            let totalPixels = 0;
+                            // 스테가노그래피 패턴 분석
+                            const pattern1 = extractSteganographyPattern(data1, 400, 400);
+                            const pattern2 = extractSteganographyPattern(data2, 400, 400);
                             
-                            // 픽셀 단위 비교 (성능을 위해 샘플링)
-                            for (let i = 0; i < data1.length; i += 16) { // 4픽셀씩 건너뛰기
-                                const r1 = data1[i];
-                                const g1 = data1[i + 1];
-                                const b1 = data1[i + 2];
-                                
-                                const r2 = data2[i];
-                                const g2 = data2[i + 1];
-                                const b2 = data2[i + 2];
-                                
-                                // 색상 차이 계산
-                                const colorDiff = Math.sqrt(
-                                    Math.pow(r1 - r2, 2) + 
-                                    Math.pow(g1 - g2, 2) + 
-                                    Math.pow(b1 - b2, 2)
-                                );
-                                
-                                // 임계값 내에 있으면 매칭으로 간주
-                                if (colorDiff < 100) { // 색상 차이가 100 이하
-                                    matchingPixels++;
-                                }
-                                
-                                totalPixels++;
-                            }
+                            // 패턴 유사도 계산
+                            const patternSimilarity = compareSteganographyPatterns(pattern1, pattern2);
                             
-                            const similarity = totalPixels > 0 ? matchingPixels / totalPixels : 0;
+                            // 마이크로 도트 패턴 분석
+                            const dotPattern1 = extractMicroDotPattern(data1, 400, 400);
+                            const dotPattern2 = extractMicroDotPattern(data2, 400, 400);
                             
-                            console.log(`🔍 이미지 비교 결과: ${Math.round(similarity * 100)}% (${matchingPixels}/${totalPixels} 픽셀)`);
+                            // 도트 패턴 유사도 계산
+                            const dotSimilarity = compareMicroDotPatterns(dotPattern1, dotPattern2);
                             
-                            resolve(similarity);
+                            // 전체 유사도 계산 (스테가노그래피 70%, 마이크로 도트 30%)
+                            const totalSimilarity = (patternSimilarity * 0.7) + (dotSimilarity * 0.3);
+                            
+                            console.log(`🔍 스테가노그래피 분석 결과: ${Math.round(totalSimilarity * 100)}%`);
+                            console.log(`📊 패턴 유사도: ${Math.round(patternSimilarity * 100)}%, 도트 유사도: ${Math.round(dotSimilarity * 100)}%`);
+                            
+                            resolve(totalSimilarity);
                             
                         } catch (error) {
-                            console.error('픽셀 비교 오류:', error);
+                            console.error('스테가노그래피 분석 오류:', error);
                             resolve(0);
                         }
                     }
@@ -2810,10 +2807,246 @@
                     img2.src = img2DataURL;
                     
                 } catch (error) {
-                    console.error('이미지 비교 함수 오류:', error);
+                    console.error('스테가노그래피 분석 함수 오류:', error);
                     resolve(0);
                 }
             });
+        }
+        
+        function extractSteganographyPattern(imageData, width, height) {
+            const pattern = [];
+            const step = 8; // 8픽셀 간격으로 샘플링
+            
+            for (let y = 0; y < height; y += step) {
+                for (let x = 0; x < width; x += step) {
+                    const index = (y * width + x) * 4;
+                    if (index < imageData.length) {
+                        const r = imageData[index];
+                        const g = imageData[index + 1];
+                        const b = imageData[index + 2];
+                        
+                        // LSB (Least Significant Bit) 스테가노그래피 패턴 추출
+                        const lsbR = r & 1;
+                        const lsbG = g & 1;
+                        const lsbB = b & 1;
+                        
+                        // 색상 변화 패턴 (미세한 색상 변화 감지)
+                        const brightness = (r + g + b) / 3;
+                        const colorVariance = Math.sqrt(
+                            Math.pow(r - brightness, 2) + 
+                            Math.pow(g - brightness, 2) + 
+                            Math.pow(b - brightness, 2)
+                        );
+                        
+                        pattern.push({
+                            lsb: (lsbR << 2) | (lsbG << 1) | lsbB,
+                            brightness: Math.floor(brightness / 16), // 16단계로 양자화
+                            variance: Math.floor(colorVariance / 8), // 8단계로 양자화
+                            position: { x: Math.floor(x / step), y: Math.floor(y / step) }
+                        });
+                    }
+                }
+            }
+            
+            return pattern;
+        }
+        
+        function extractMicroDotPattern(imageData, width, height) {
+            const dotPattern = [];
+            const dotSize = 4; // 마이크로 도트 크기
+            const step = 16; // 16픽셀 간격으로 도트 검색
+            
+            for (let y = 0; y < height; y += step) {
+                for (let x = 0; x < width; x += step) {
+                    let dotBrightness = 0;
+                    let dotPixels = 0;
+                    
+                    // 도트 영역의 평균 밝기 계산
+                    for (let dy = 0; dy < dotSize && (y + dy) < height; dy++) {
+                        for (let dx = 0; dx < dotSize && (x + dx) < width; dx++) {
+                            const index = ((y + dy) * width + (x + dx)) * 4;
+                            if (index < imageData.length) {
+                                const r = imageData[index];
+                                const g = imageData[index + 1];
+                                const b = imageData[index + 2];
+                                dotBrightness += (r + g + b) / 3;
+                                dotPixels++;
+                            }
+                        }
+                    }
+                    
+                    if (dotPixels > 0) {
+                        const avgBrightness = dotBrightness / dotPixels;
+                        const isDark = avgBrightness < 128;
+                        
+                        dotPattern.push({
+                            isDark: isDark,
+                            brightness: Math.floor(avgBrightness / 32), // 8단계로 양자화
+                            position: { x: Math.floor(x / step), y: Math.floor(y / step) }
+                        });
+                    }
+                }
+            }
+            
+            return dotPattern;
+        }
+        
+        function compareSteganographyPatterns(pattern1, pattern2) {
+            if (pattern1.length === 0 || pattern2.length === 0) return 0;
+            
+            let matches = 0;
+            const minLength = Math.min(pattern1.length, pattern2.length);
+            
+            for (let i = 0; i < minLength; i++) {
+                const p1 = pattern1[i];
+                const p2 = pattern2[i];
+                
+                // LSB 패턴 비교
+                const lsbMatch = p1.lsb === p2.lsb;
+                
+                // 밝기 패턴 비교 (허용 오차 1단계)
+                const brightnessMatch = Math.abs(p1.brightness - p2.brightness) <= 1;
+                
+                // 색상 분산 패턴 비교 (허용 오차 1단계)
+                const varianceMatch = Math.abs(p1.variance - p2.variance) <= 1;
+                
+                if (lsbMatch && brightnessMatch && varianceMatch) {
+                    matches++;
+                }
+            }
+            
+            return matches / minLength;
+        }
+        
+        function compareMicroDotPatterns(dotPattern1, dotPattern2) {
+            if (dotPattern1.length === 0 || dotPattern2.length === 0) return 0;
+            
+            let matches = 0;
+            const minLength = Math.min(dotPattern1.length, dotPattern2.length);
+            
+            for (let i = 0; i < minLength; i++) {
+                const d1 = dotPattern1[i];
+                const d2 = dotPattern2[i];
+                
+                // 도트 패턴 비교 (밝기 허용 오차 1단계)
+                const brightnessMatch = Math.abs(d1.brightness - d2.brightness) <= 1;
+                const patternMatch = d1.isDark === d2.isDark;
+                
+                if (brightnessMatch && patternMatch) {
+                    matches++;
+                }
+            }
+            
+            return matches / minLength;
+        }
+        
+        function generateUniqueId() {
+            // 타임스탬프 + 랜덤 값으로 고유 ID 생성
+            return Date.now().toString(36) + Math.random().toString(36).substr(2, 9);
+        }
+        
+        function insertSteganographyPattern(ctx, width, height, uniqueId) {
+            // 고유 ID를 바이너리 패턴으로 변환
+            const binaryPattern = stringToBinary(uniqueId);
+            const patternLength = binaryPattern.length;
+            
+            // 이미지 전체에 스테가노그래피 패턴 삽입
+            let patternIndex = 0;
+            const step = 4; // 4픽셀 간격으로 패턴 삽입
+            
+            for (let y = 0; y < height; y += step) {
+                for (let x = 0; x < width; x += step) {
+                    if (patternIndex >= patternLength) break;
+                    
+                    const imageData = ctx.getImageData(x, y, 1, 1).data;
+                    const r = imageData[0];
+                    const g = imageData[1];
+                    const b = imageData[2];
+                    
+                    // LSB 스테가노그래피로 패턴 삽입
+                    const bit = parseInt(binaryPattern[patternIndex]);
+                    
+                    // RGB 각 채널의 LSB에 패턴 삽입
+                    const newR = (r & 0xFE) | bit;
+                    const newG = (g & 0xFE) | ((patternIndex % 2) ? bit : (1 - bit));
+                    const newB = (b & 0xFE) | ((patternIndex % 3) ? bit : (1 - bit));
+                    
+                    // 미세한 색상 변화로 패턴 강화
+                    const brightness = (newR + newG + newB) / 3;
+                    const variance = Math.sin(patternIndex * 0.1) * 2; // 미세한 색상 변화
+                    
+                    const finalR = Math.max(0, Math.min(255, newR + variance));
+                    const finalG = Math.max(0, Math.min(255, newG + variance));
+                    const finalB = Math.max(0, Math.min(255, newB + variance));
+                    
+                    ctx.fillStyle = `rgb(${finalR}, ${finalG}, ${finalB})`;
+                    ctx.fillRect(x, y, 1, 1);
+                    
+                    patternIndex++;
+                }
+            }
+            
+            console.log(`🔐 스테가노그래피 패턴 삽입 완료: ${uniqueId}`);
+        }
+        
+        function insertMicroDotPattern(ctx, width, height, uniqueId) {
+            // 고유 ID를 마이크로 도트 패턴으로 변환
+            const dotPattern = stringToDotPattern(uniqueId);
+            const patternLength = dotPattern.length;
+            
+            // 이미지 전체에 마이크로 도트 패턴 삽입
+            let patternIndex = 0;
+            const step = 16; // 16픽셀 간격으로 도트 삽입
+            const dotSize = 2; // 2x2 픽셀 도트
+            
+            for (let y = 0; y < height; y += step) {
+                for (let x = 0; x < width; x += step) {
+                    if (patternIndex >= patternLength) break;
+                    
+                    const shouldInsertDot = dotPattern[patternIndex];
+                    
+                    if (shouldInsertDot) {
+                        // 어두운 도트 삽입
+                        ctx.fillStyle = 'rgba(0, 0, 0, 0.1)';
+                        ctx.fillRect(x, y, dotSize, dotSize);
+                    } else {
+                        // 밝은 도트 삽입 (배경과 구분되도록)
+                        ctx.fillStyle = 'rgba(255, 255, 255, 0.05)';
+                        ctx.fillRect(x, y, dotSize, dotSize);
+                    }
+                    
+                    patternIndex++;
+                }
+            }
+            
+            console.log(`🔍 마이크로 도트 패턴 삽입 완료: ${uniqueId}`);
+        }
+        
+        function stringToBinary(str) {
+            let binary = '';
+            for (let i = 0; i < str.length; i++) {
+                const charCode = str.charCodeAt(i);
+                binary += charCode.toString(2).padStart(8, '0');
+            }
+            return binary;
+        }
+        
+        function stringToDotPattern(str) {
+            // 문자열을 도트 패턴으로 변환 (0과 1의 배열)
+            const binary = stringToBinary(str);
+            const pattern = [];
+            
+            for (let i = 0; i < binary.length; i++) {
+                pattern.push(parseInt(binary[i]));
+            }
+            
+            // 패턴을 반복하여 이미지 전체를 커버
+            const repeatedPattern = [];
+            while (repeatedPattern.length < 1000) { // 충분한 패턴 생성
+                repeatedPattern.push(...pattern);
+            }
+            
+            return repeatedPattern;
         }
 
         function analyzeSpecialMarkers(capturedFrameDataURL, targetImageDataURL) {
