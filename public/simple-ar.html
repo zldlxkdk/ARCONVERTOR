@@ -420,6 +420,17 @@
             50% { opacity: 1; transform: scale(1.05); }
         }
 
+        @keyframes arTrackingPulse {
+            0%, 100% { 
+                opacity: 0.8; 
+                box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.3), 0 0 20px rgba(255, 107, 53, 0.5);
+            }
+            50% { 
+                opacity: 1; 
+                box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.2), 0 0 30px rgba(255, 107, 53, 0.8);
+            }
+        }
+
         .scan-instructions {
             position: absolute;
             bottom: 20px;
@@ -754,12 +765,76 @@
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
-            width: 80%;
-            height: 60%;
+            width: 300px;
+            height: 300px;
             border: 3px solid #ff6b35;
             border-radius: 15px;
             box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.3);
             animation: scanPulse 2s infinite;
+            /* 프레임 정확한 중앙 정렬 보장 */
+            margin: auto;
+            display: block;
+        }
+
+        /* 스캔 프레임의 코너 마커 */
+        .scanner-overlay-fullscreen::before,
+        .scanner-overlay-fullscreen::after {
+            content: '';
+            position: absolute;
+            width: 30px;
+            height: 30px;
+            border: 4px solid #ff6b35;
+        }
+
+        .scanner-overlay-fullscreen::before {
+            top: -4px;
+            left: -4px;
+            border-right: transparent;
+            border-bottom: transparent;
+            border-top-left-radius: 15px;
+        }
+
+        .scanner-overlay-fullscreen::after {
+            top: -4px;
+            right: -4px;
+            border-left: transparent;
+            border-bottom: transparent;
+            border-top-right-radius: 15px;
+        }
+
+        /* 추가 코너 마커 */
+        .corner-markers {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            pointer-events: none;
+        }
+
+        .corner-markers::before,
+        .corner-markers::after {
+            content: '';
+            position: absolute;
+            width: 30px;
+            height: 30px;
+            border: 4px solid #ff6b35;
+        }
+
+        .corner-markers::before {
+            bottom: -4px;
+            left: -4px;
+            border-right: transparent;
+            border-top: transparent;
+            border-bottom-left-radius: 15px;
+        }
+
+        .corner-markers::after {
+            bottom: -4px;
+            right: -4px;
+            border-left: transparent;
+            border-top: transparent;
+            border-bottom-right-radius: 15px;
         }
 
         .scanner-controls-fullscreen {
@@ -969,7 +1044,9 @@
             <button class="scan-close-btn" onclick="closeFullscreenScan()">✕ 닫기</button>
         </div>
         
-        <div class="scanner-overlay-fullscreen"></div>
+        <div class="scanner-overlay-fullscreen">
+            <div class="corner-markers"></div>
+        </div>
         
         <div class="scan-instructions-fullscreen" id="scanInstructionsFullscreen">
             생성된 AR 이미지를 프레임 안에 맞춰주세요<br>
@@ -1891,6 +1968,7 @@
             const video = document.getElementById('scannerVideoFullscreen');
             const scanStatusFullscreen = document.getElementById('scanStatusFullscreen');
             const scanInstructionsFullscreen = document.getElementById('scanInstructionsFullscreen');
+            const scanFrame = document.querySelector('.scanner-overlay-fullscreen');
             
             if (!video || !video.srcObject) {
                 console.log('전체 화면 카메라가 없음, 직접 감지 모드로 실행');
@@ -1904,17 +1982,28 @@
                 `;
                 
                 setTimeout(() => {
-                    // 전체 화면 스캐너 닫고 AR 뷰어로 이동
                     closeFullscreenScan();
-                    loadAndPlayAR(arId);
+                    loadAndPlayARWithPosition(arId, scanFrame);
                 }, 1000);
                 return;
             }
 
             scanInstructionsFullscreen.innerHTML = `
-                이미지 인식 중...<br>
-                <span style="opacity: 0.7;">저장된 ${arKeys.length}개 이미지 중 검색</span>
+                <span style="color: #4CAF50;">📸 이미지 스캔 중...</span><br>
+                <span style="opacity: 0.8; font-size: 14px;">생성한 AR 이미지를 프레임 안에 맞춰주세요</span>
             `;
+
+            // 스캔 프레임 영역 계산
+            const frameRect = scanFrame.getBoundingClientRect();
+            const videoRect = video.getBoundingClientRect();
+            
+            // 프레임 영역 상대 좌표 계산
+            const frameX = (frameRect.left - videoRect.left) / videoRect.width;
+            const frameY = (frameRect.top - videoRect.top) / videoRect.height;
+            const frameWidth = frameRect.width / videoRect.width;
+            const frameHeight = frameRect.height / videoRect.height;
+
+            console.log('스캔 프레임 영역:', { frameX, frameY, frameWidth, frameHeight });
 
             // 카메라에서 프레임 캡처 및 분석
             const canvas = document.createElement('canvas');
@@ -1922,67 +2011,100 @@
             canvas.width = video.videoWidth || 1280;
             canvas.height = video.videoHeight || 720;
 
+            // 프레임 영역만 분석하기 위한 캔버스
+            const frameCanvas = document.createElement('canvas');
+            const frameCtx = frameCanvas.getContext('2d');
+            frameCanvas.width = 300;
+            frameCanvas.height = 300;
+
             let detectionCount = 0;
-            const maxDetections = 20; // 2초
+            const maxDetections = 30; // 3초로 연장
 
             const detectInterval = setInterval(() => {
                 detectionCount++;
 
                 try {
+                    // 전체 프레임 캡처
                     ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-                    const currentFrame = canvas.toDataURL('image/jpeg', 0.8);
+                    
+                    // 스캔 프레임 영역만 추출
+                    const cropX = Math.max(0, Math.floor(frameX * canvas.width));
+                    const cropY = Math.max(0, Math.floor(frameY * canvas.height));
+                    const cropW = Math.min(canvas.width - cropX, Math.floor(frameWidth * canvas.width));
+                    const cropH = Math.min(canvas.height - cropY, Math.floor(frameHeight * canvas.height));
+                    
+                    // 프레임 영역을 별도 캔버스에 그리기
+                    frameCtx.clearRect(0, 0, frameCanvas.width, frameCanvas.height);
+                    frameCtx.drawImage(canvas, cropX, cropY, cropW, cropH, 0, 0, frameCanvas.width, frameCanvas.height);
+                    
+                    const croppedFrame = frameCanvas.toDataURL('image/jpeg', 0.9);
 
-                    // 저장된 AR 이미지들과 비교
+                    // 저장된 AR 이미지들과 비교 (프레임 영역만)
                     let bestMatch = null;
                     let bestScore = 0;
 
                     arKeys.forEach(key => {
                         const arData = JSON.parse(localStorage.getItem(key));
-                        const similarity = compareImages(currentFrame, arData.targetImage);
+                        const similarity = compareImages(croppedFrame, arData.targetImage);
 
                         if (similarity > bestScore) {
                             bestScore = similarity;
                             bestMatch = {
                                 id: key.replace('arData_', ''),
                                 score: similarity,
-                                data: arData
+                                data: arData,
+                                framePosition: {
+                                    x: frameX,
+                                    y: frameY,
+                                    width: frameWidth,
+                                    height: frameHeight,
+                                    centerX: frameX + frameWidth / 2,
+                                    centerY: frameY + frameHeight / 2
+                                }
                             };
                         }
                     });
 
-                    console.log(`전체화면 프레임 ${detectionCount}: 최고 유사도 ${Math.round(bestScore * 100)}%`);
+                    console.log(`프레임 영역 분석 ${detectionCount}: 최고 유사도 ${Math.round(bestScore * 100)}%`);
 
-                    // 인식 임계값 (50% 이상 유사도)
-                    if (bestMatch && bestScore > 0.5) {
+                    // 진행률 표시
+                    const progress = Math.round((detectionCount / maxDetections) * 100);
+                    scanInstructionsFullscreen.innerHTML = `
+                        <span style="color: #4CAF50;">📸 이미지 분석 중... ${progress}%</span><br>
+                        <span style="opacity: 0.8; font-size: 14px;">최고 매칭도: ${Math.round(bestScore * 100)}%</span>
+                    `;
+
+                    // 높은 정확도로 인식된 경우 (70% 이상)
+                    if (bestMatch && bestScore > 0.7) {
                         clearInterval(detectInterval);
 
                         scanInstructionsFullscreen.innerHTML = `
-                            🎯 이미지 매칭 성공! (${Math.round(bestScore * 100)}%)<br>
-                            <span style="color: #4CAF50;">AR 영상을 로딩합니다...</span>
+                            <span style="color: #4CAF50;">🎯 이미지 인식 성공! (${Math.round(bestScore * 100)}%)</span><br>
+                            <span style="opacity: 0.8;">정확한 위치에 AR 영상을 로딩합니다...</span>
                         `;
 
                         setTimeout(() => {
                             closeFullscreenScan();
-                            loadAndPlayAR(bestMatch.id);
-                        }, 1000);
+                            loadAndPlayARWithPosition(bestMatch.id, bestMatch.framePosition);
+                        }, 1500);
 
                     } else if (detectionCount >= maxDetections) {
                         clearInterval(detectInterval);
 
-                        if (bestMatch) {
+                        if (bestMatch && bestScore > 0.4) {
                             scanInstructionsFullscreen.innerHTML = `
-                                📷 유사한 이미지 발견 (${Math.round(bestScore * 100)}%)<br>
-                                <span style="color: #ff6b35;">부분 매칭으로 실행합니다...</span>
+                                <span style="color: #ff6b35;">📷 부분 매칭 감지 (${Math.round(bestScore * 100)}%)</span><br>
+                                <span style="opacity: 0.8;">감지된 위치에 AR 영상을 실행합니다...</span>
                             `;
 
                             setTimeout(() => {
                                 closeFullscreenScan();
-                                loadAndPlayAR(bestMatch.id);
-                            }, 1000);
+                                loadAndPlayARWithPosition(bestMatch.id, bestMatch.framePosition);
+                            }, 1500);
                         } else {
                             scanInstructionsFullscreen.innerHTML = `
-                                🎯 자동 감지 모드<br>
-                                <span style="color: #4CAF50;">최신 AR 이미지로 실행합니다...</span>
+                                <span style="color: #ff6b35;">🎯 자동 AR 모드</span><br>
+                                <span style="opacity: 0.8;">최신 생성 이미지로 AR을 실행합니다...</span>
                             `;
 
                             const latestKey = arKeys[arKeys.length - 1];
@@ -1990,22 +2112,22 @@
 
                             setTimeout(() => {
                                 closeFullscreenScan();
-                                loadAndPlayAR(arId);
-                            }, 1000);
+                                loadAndPlayARWithPosition(arId, {
+                                    centerX: 0.5,
+                                    centerY: 0.5,
+                                    width: 0.3,
+                                    height: 0.3
+                                });
+                            }, 1500);
                         }
-                    } else {
-                        scanInstructionsFullscreen.innerHTML = `
-                            이미지 분석 중... (${detectionCount}/${maxDetections})<br>
-                            <span style="opacity: 0.7;">최고 유사도: ${Math.round(bestScore * 100)}%</span>
-                        `;
                     }
                 } catch (error) {
                     console.error('전체화면 프레임 분석 오류:', error);
                     clearInterval(detectInterval);
 
                     scanInstructionsFullscreen.innerHTML = `
-                        🎯 자동 감지 완료<br>
-                        <span style="color: #4CAF50;">AR 영상을 로딩합니다...</span>
+                        <span style="color: #4CAF50;">🎯 AR 자동 실행</span><br>
+                        <span style="opacity: 0.8;">기본 설정으로 AR 영상을 로딩합니다...</span>
                     `;
 
                     const latestKey = arKeys[arKeys.length - 1];
@@ -2013,7 +2135,12 @@
 
                     setTimeout(() => {
                         closeFullscreenScan();
-                        loadAndPlayAR(arId);
+                        loadAndPlayARWithPosition(arId, {
+                            centerX: 0.5,
+                            centerY: 0.5,
+                            width: 0.3,
+                            height: 0.3
+                        });
                     }, 1000);
                 }
 
@@ -2237,6 +2364,32 @@
             }
         }
 
+        function loadAndPlayARWithPosition(arId, framePosition) {
+            console.log('위치 기반 AR 로딩:', arId, framePosition);
+            
+            const arData = JSON.parse(localStorage.getItem(`arData_${arId}`));
+            if (!arData) {
+                console.error('AR 데이터를 찾을 수 없습니다:', arId);
+                alert('AR 데이터를 찾을 수 없습니다.');
+                return;
+            }
+
+            // AR 뷰어 표시
+            showARViewer();
+            
+            // 카메라 백그라운드 설정
+            setupCameraBackground();
+            
+            // 위치 정보가 있는 경우 정확한 위치에 오버레이
+            if (framePosition && framePosition.centerX !== undefined) {
+                console.log('감지된 위치에 AR 오버레이 설정:', framePosition);
+                loadVideoOverlayAtPosition(arData, framePosition);
+            } else {
+                console.log('기본 중앙 위치에 AR 오버레이 설정');
+                loadVideoOverlay(arData);
+            }
+        }
+
         function loadAndPlayAR(arId) {
             const arDataJson = localStorage.getItem('arData_' + arId);
             if (!arDataJson) {
@@ -2295,6 +2448,152 @@
                 loadVideoOverlay(arData);
                 
             }, 3000);
+        }
+
+        function loadVideoOverlayAtPosition(arData, framePosition) {
+            console.log('위치 기반 비디오 오버레이 로딩:', framePosition);
+            
+            const overlayVideo = document.getElementById('overlayVideo');
+            const overlayFrame = document.getElementById('overlayFrame');
+            const arStatus = document.getElementById('arStatus');
+            
+            // 상태 업데이트
+            arStatus.textContent = '🎯 감지된 위치에 AR 비디오 로딩 중...';
+            
+            // 오버레이 컨테이너 표시
+            const overlayContainer = document.querySelector('.ar-overlay-container');
+            overlayContainer.style.display = 'block';
+            
+            // 위치 계산 (뷰포트 기준)
+            const viewportWidth = window.innerWidth;
+            const viewportHeight = window.innerHeight;
+            
+            // 감지된 프레임 위치를 뷰포트 좌표로 변환
+            const overlayLeft = framePosition.centerX * viewportWidth - (framePosition.width * viewportWidth / 2);
+            const overlayTop = framePosition.centerY * viewportHeight - (framePosition.height * viewportHeight / 2);
+            const overlayWidth = framePosition.width * viewportWidth;
+            const overlayHeight = framePosition.height * viewportHeight;
+            
+            console.log('계산된 오버레이 위치:', {
+                left: overlayLeft,
+                top: overlayTop,
+                width: overlayWidth,
+                height: overlayHeight
+            });
+            
+            // 오버레이 프레임 위치 설정
+            overlayFrame.style.position = 'fixed';
+            overlayFrame.style.left = overlayLeft + 'px';
+            overlayFrame.style.top = overlayTop + 'px';
+            overlayFrame.style.width = overlayWidth + 'px';
+            overlayFrame.style.height = overlayHeight + 'px';
+            overlayFrame.style.border = '3px solid #ff6b35';
+            overlayFrame.style.borderRadius = '15px';
+            overlayFrame.style.zIndex = '1002';
+            overlayFrame.style.pointerEvents = 'none';
+            overlayFrame.style.animation = 'arTrackingPulse 2s infinite';
+            
+            // 비디오 위치 설정 (프레임보다 약간 작게)
+            const videoMargin = 6; // 프레임 테두리를 위한 여백
+            overlayVideo.style.position = 'fixed';
+            overlayVideo.style.left = (overlayLeft + videoMargin) + 'px';
+            overlayVideo.style.top = (overlayTop + videoMargin) + 'px';
+            overlayVideo.style.width = (overlayWidth - videoMargin * 2) + 'px';
+            overlayVideo.style.height = (overlayHeight - videoMargin * 2) + 'px';
+            overlayVideo.style.borderRadius = '12px';
+            overlayVideo.style.zIndex = '1001';
+            overlayVideo.style.objectFit = 'cover';
+            
+            // AR 트래킹 시뮬레이션 (약간의 움직임)
+            let trackingOffset = 0;
+            const trackingAnimation = setInterval(() => {
+                trackingOffset += 0.1;
+                const jitterX = Math.sin(trackingOffset) * 2;
+                const jitterY = Math.cos(trackingOffset * 1.3) * 1.5;
+                
+                overlayFrame.style.transform = `translate(${jitterX}px, ${jitterY}px)`;
+                overlayVideo.style.transform = `translate(${jitterX}px, ${jitterY}px)`;
+            }, 50);
+            
+            // 비디오 로딩 및 재생
+            if (arData.videoData) {
+                overlayVideo.src = arData.videoData;
+                overlayVideo.style.display = 'block';
+                
+                overlayVideo.onloadeddata = () => {
+                    console.log('위치 기반 AR 비디오 데이터 로딩 완료');
+                    arStatus.textContent = '🎯 AR 비디오 재생 중 (감지된 위치)';
+                    
+                    // 강제 재생 시도
+                    attemptVideoPlayWithRetry(overlayVideo, 0);
+                };
+                
+                overlayVideo.onerror = (error) => {
+                    console.error('위치 기반 AR 비디오 로딩 실패:', error);
+                    showYouTubeOverlayAtPosition(framePosition);
+                };
+            } else {
+                console.log('비디오 없음, 위치 기반 폴백 YouTube 표시');
+                showYouTubeOverlayAtPosition(framePosition);
+            }
+            
+            // 정리 함수 저장
+            window.currentTrackingAnimation = trackingAnimation;
+        }
+        
+        function showYouTubeOverlayAtPosition(framePosition) {
+            console.log('위치 기반 YouTube 오버레이 표시:', framePosition);
+            
+            const youtubeOverlay = document.getElementById('youtubeOverlay');
+            const arStatus = document.getElementById('arStatus');
+            
+            arStatus.textContent = '📺 위치 기반 폴백 비디오 재생 중';
+            
+            // 위치 계산
+            const viewportWidth = window.innerWidth;
+            const viewportHeight = window.innerHeight;
+            
+            const overlayLeft = framePosition.centerX * viewportWidth - (framePosition.width * viewportWidth / 2);
+            const overlayTop = framePosition.centerY * viewportHeight - (framePosition.height * viewportHeight / 2);
+            const overlayWidth = framePosition.width * viewportWidth;
+            const overlayHeight = framePosition.height * viewportHeight;
+            
+            // YouTube iframe 위치 설정
+            youtubeOverlay.style.position = 'fixed';
+            youtubeOverlay.style.left = overlayLeft + 'px';
+            youtubeOverlay.style.top = overlayTop + 'px';
+            youtubeOverlay.style.width = overlayWidth + 'px';
+            youtubeOverlay.style.height = overlayHeight + 'px';
+            youtubeOverlay.style.borderRadius = '15px';
+            youtubeOverlay.style.border = '3px solid #ff6b35';
+            youtubeOverlay.style.zIndex = '1001';
+            youtubeOverlay.style.display = 'block';
+            
+            // YouTube iframe 내용 설정
+            youtubeOverlay.innerHTML = `
+                <iframe 
+                    width="100%" 
+                    height="100%" 
+                    src="https://www.youtube.com/embed/dQw4w9WgXcQ?autoplay=1&mute=1&loop=1&playlist=dQw4w9WgXcQ&controls=1&modestbranding=1&rel=0"
+                    title="AR Fallback Video"
+                    frameborder="0"
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                    allowfullscreen
+                    style="border-radius: 12px;">
+                </iframe>
+            `;
+            
+            // AR 트래킹 시뮬레이션
+            let trackingOffset = 0;
+            const trackingAnimation = setInterval(() => {
+                trackingOffset += 0.1;
+                const jitterX = Math.sin(trackingOffset) * 2;
+                const jitterY = Math.cos(trackingOffset * 1.3) * 1.5;
+                
+                youtubeOverlay.style.transform = `translate(${jitterX}px, ${jitterY}px)`;
+            }, 50);
+            
+            window.currentTrackingAnimation = trackingAnimation;
         }
 
         function loadVideoOverlay(arData) {
@@ -2951,21 +3250,70 @@
         }
 
         function closeARViewer() {
+            console.log('AR 뷰어 닫기');
+            
             // AR 뷰어 숨김
             const arViewer = document.getElementById('arViewer');
             arViewer.style.display = 'none';
             arViewer.classList.remove('active');
             
             // 오버레이 요소들 숨김
-            document.getElementById('arOverlayContainer').classList.remove('active');
-            document.getElementById('youtubeOverlay').classList.remove('active');
+            const arOverlayContainer = document.getElementById('arOverlayContainer');
+            const youtubeOverlay = document.getElementById('youtubeOverlay');
+            const overlayVideo = document.getElementById('overlayVideo');
+            const overlayFrame = document.getElementById('overlayFrame');
+            const overlayContainer = document.querySelector('.ar-overlay-container');
+            
+            if (arOverlayContainer) arOverlayContainer.classList.remove('active');
+            if (youtubeOverlay) youtubeOverlay.classList.remove('active');
             document.getElementById('cameraPreview').classList.add('hidden');
+            
+            // 위치 기반 오버레이 정리
+            if (overlayVideo) {
+                overlayVideo.pause();
+                overlayVideo.currentTime = 0;
+                overlayVideo.src = '';
+                overlayVideo.style.display = 'none';
+                // 위치 스타일 초기화
+                overlayVideo.style.position = '';
+                overlayVideo.style.left = '';
+                overlayVideo.style.top = '';
+                overlayVideo.style.width = '';
+                overlayVideo.style.height = '';
+                overlayVideo.style.transform = '';
+            }
+            
+            if (overlayFrame) {
+                overlayFrame.style.display = 'none';
+                // 위치 스타일 초기화
+                overlayFrame.style.position = '';
+                overlayFrame.style.left = '';
+                overlayFrame.style.top = '';
+                overlayFrame.style.width = '';
+                overlayFrame.style.height = '';
+                overlayFrame.style.transform = '';
+            }
+            
+            if (overlayContainer) {
+                overlayContainer.style.display = 'none';
+            }
+            
+            if (youtubeOverlay) {
+                youtubeOverlay.style.display = 'none';
+                youtubeOverlay.innerHTML = '';
+                // 위치 스타일 초기화
+                youtubeOverlay.style.position = '';
+                youtubeOverlay.style.left = '';
+                youtubeOverlay.style.top = '';
+                youtubeOverlay.style.width = '';
+                youtubeOverlay.style.height = '';
+                youtubeOverlay.style.transform = '';
+            }
             
             // 카메라 스트림 정리
             const scannerVideo = document.getElementById('scannerVideo');
             const previewVideo = document.getElementById('previewVideo');
             const cameraBackground = document.getElementById('cameraBackground');
-            const overlayVideo = document.getElementById('overlayVideo');
             
             if (scannerVideo && scannerVideo.srcObject) {
                 scannerVideo.srcObject.getTracks().forEach(track => track.stop());
@@ -2977,14 +3325,8 @@
             }
             
             if (cameraBackground && cameraBackground.srcObject) {
+                cameraBackground.srcObject.getTracks().forEach(track => track.stop());
                 cameraBackground.srcObject = null;
-            }
-            
-            // 오버레이 비디오 정리
-            if (overlayVideo) {
-                overlayVideo.pause();
-                overlayVideo.currentTime = 0;
-                overlayVideo.src = '';
             }
             
             // 유튜브 iframe 정리
@@ -2996,6 +3338,12 @@
             if (scanTimeout) {
                 clearTimeout(scanTimeout);
                 scanTimeout = null;
+            }
+            
+            // 위치 기반 트래킹 애니메이션 정리
+            if (window.currentTrackingAnimation) {
+                clearInterval(window.currentTrackingAnimation);
+                window.currentTrackingAnimation = null;
             }
             
             // 스캔 화면 리셋
