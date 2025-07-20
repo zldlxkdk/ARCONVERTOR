@@ -1019,9 +1019,97 @@
                 <div class="scanner-container" id="scannerContainer" style="display: none;">
                     <video id="scannerVideo" class="scanner-video" autoplay muted playsinline></video>
                     <div class="scanner-overlay"></div>
+                    
+                    <!-- 실시간 AR 비디오 오버레이 -->
+                    <div class="scanner-ar-overlay" id="scannerArOverlay" style="
+                        position: absolute;
+                        top: 0;
+                        left: 0;
+                        width: 100%;
+                        height: 100%;
+                        z-index: 1001;
+                        display: none;
+                        pointer-events: none;
+                    ">
+                        <!-- AR 비디오 -->
+                        <video id="scannerOverlayVideo" class="scanner-overlay-video" loop muted playsinline style="
+                            position: absolute;
+                            border: 3px solid #ff6b35;
+                            border-radius: 12px;
+                            box-shadow: 0 0 25px rgba(255, 107, 53, 0.8);
+                            background: rgba(0, 0, 0, 0.9);
+                            z-index: 1002;
+                            display: none;
+                        "></video>
+                        
+                        <!-- AR 프레임 -->
+                        <div id="scannerOverlayFrame" class="scanner-overlay-frame" style="
+                            position: absolute;
+                            border: 3px dashed #4CAF50;
+                            border-radius: 15px;
+                            background: rgba(76, 175, 80, 0.1);
+                            pointer-events: none;
+                            animation: frameGlow 2s infinite alternate;
+                            z-index: 1001;
+                            display: none;
+                        "></div>
+                        
+                        <!-- AR 상태 표시 -->
+                        <div id="scannerArStatus" class="scanner-ar-status" style="
+                            position: absolute;
+                            top: 20px;
+                            left: 50%;
+                            transform: translateX(-50%);
+                            background: rgba(0, 0, 0, 0.9);
+                            color: white;
+                            padding: 10px 20px;
+                            border-radius: 20px;
+                            font-size: 14px;
+                            font-weight: 600;
+                            text-align: center;
+                            backdrop-filter: blur(10px);
+                            border: 2px solid #ff6b35;
+                            z-index: 1003;
+                            display: none;
+                        "></div>
+                        
+                        <!-- AR 컨트롤 -->
+                        <div id="scannerArControls" class="scanner-ar-controls" style="
+                            position: absolute;
+                            bottom: 20px;
+                            left: 50%;
+                            transform: translateX(-50%);
+                            display: flex;
+                            gap: 10px;
+                            z-index: 1003;
+                            display: none;
+                        ">
+                            <button onclick="toggleScannerVideoSound()" class="scanner-ar-btn" style="
+                                background: #4CAF50;
+                                color: white;
+                                border: none;
+                                padding: 8px 16px;
+                                border-radius: 20px;
+                                cursor: pointer;
+                                font-size: 12px;
+                                font-weight: 600;
+                            ">🔊 소리</button>
+                            <button onclick="closeScannerAR()" class="scanner-ar-btn" style="
+                                background: #ff6b35;
+                                color: white;
+                                border: none;
+                                padding: 8px 16px;
+                                border-radius: 20px;
+                                cursor: pointer;
+                                font-size: 12px;
+                                font-weight: 600;
+                            ">✕ 닫기</button>
+                        </div>
+                    </div>
+                    
                     <div class="scan-instructions" id="scan-instructions">
                         생성된 AR 이미지를 프레임 안에 맞춰주세요<br>
-                        <span style="opacity: 0.7;">3초 후 자동 감지</span>
+                        <span style="opacity: 0.7;">자동으로 이미지를 찾아서 분석합니다</span>
                     </div>
                 </div>
 
@@ -2567,6 +2655,7 @@
 
             let detectionCount = 0;
             const maxDetections = 30; // 30프레임 시도 (3초)
+            let currentARId = null; // 현재 표시 중인 AR ID
             
             const detectInterval = setInterval(async () => {
                 detectionCount++;
@@ -2615,45 +2704,29 @@
                     const threshold = 0.1; // 10%만 일치해도 감지
                     
                     if (bestMatch && bestScore > threshold) {
-                        clearInterval(detectInterval);
+                        // 새로운 AR 이미지가 감지되었거나 다른 AR 이미지가 감지된 경우
+                        if (currentARId !== bestMatch.id) {
+                            console.log(`🎯 새로운 AR 이미지 감지: ${bestMatch.id} (${Math.round(bestScore * 100)}%)`);
+                            currentARId = bestMatch.id;
+                            
+                            // 스캔 화면에서 AR 비디오 로드
+                            loadScannerAR(bestMatch.id);
+                        }
                         
+                        // 계속 감지 (이미지가 사라질 수 있으므로)
                         document.getElementById('scan-instructions').innerHTML = `
-                            🎯 이미지 매칭 성공! (${Math.round(bestScore * 100)}%)<br>
-                            <span style="color: #4CAF50;">AR 영상을 로딩합니다...</span>
+                            🎯 AR 이미지 감지됨 (${Math.round(bestScore * 100)}%)<br>
+                            <span style="color: #4CAF50;">AR 영상이 재생되고 있습니다</span>
                         `;
                         
-                        setTimeout(() => {
-                            loadAndPlayAR(bestMatch.id);
-                        }, 1000);
-                        
-                    } else if (detectionCount >= maxDetections) {
-                        clearInterval(detectInterval);
-                        
-                        // 최대 시도 후에도 인식 실패 - 가장 유사한 것 사용
-                        if (bestMatch && bestScore > 0.05) { // 5% 이상이면 사용
-                            document.getElementById('scan-instructions').innerHTML = `
-                                📷 유사한 이미지 발견 (${Math.round(bestScore * 100)}%)<br>
-                                <span style="color: #ff6b35;">부분 매칭으로 실행합니다...</span>
-                            `;
-                            
-                            setTimeout(() => {
-                                loadAndPlayAR(bestMatch.id);
-                            }, 1000);
-                        } else {
-                            // 완전 실패 - 최신 이미지 사용
-                            document.getElementById('scan-instructions').innerHTML = `
-                                🎯 자동 감지 모드<br>
-                                <span style="color: #4CAF50;">최신 AR 이미지로 실행합니다...</span>
-                            `;
-                            
-                            const latestKey = arKeys[arKeys.length - 1];
-                            const arId = latestKey.replace('arData_', '');
-                            
-                            setTimeout(() => {
-                                loadAndPlayAR(arId);
-                            }, 1000);
-                        }
                     } else {
+                        // AR 이미지가 감지되지 않은 경우
+                        if (currentARId !== null) {
+                            console.log('❌ AR 이미지가 사라짐');
+                            currentARId = null;
+                            hideScannerAR();
+                        }
+                        
                         // 계속 인식 시도
                         document.getElementById('scan-instructions').innerHTML = `
                             🔍 이미지 분석 중... (${detectionCount}/${maxDetections})<br>
@@ -2669,16 +2742,9 @@
                         clearInterval(detectInterval);
                         
                         document.getElementById('scan-instructions').innerHTML = `
-                            🎯 자동 감지 완료<br>
-                            <span style="color: #4CAF50;">AR 영상을 로딩합니다...</span>
+                            ⚠️ 이미지 감지 오류<br>
+                            <span style="opacity: 0.7;">카메라 인식 화면을 계속 표시합니다</span>
                         `;
-                        
-                        const latestKey = arKeys[arKeys.length - 1];
-                        const arId = latestKey.replace('arData_', '');
-                        
-                        setTimeout(() => {
-                            loadAndPlayAR(arId);
-                        }, 1000);
                     }
                 }
             }, 100); // 100ms마다 검색 (빠른 감지)
@@ -3544,6 +3610,198 @@
                 clearTimeout(scanTimeout);
                 scanTimeout = null;
             }
+        }
+
+        // 스캔 화면에서 AR 비디오 로드 (새로운 함수)
+        function loadScannerAR(arId) {
+            const arDataJson = localStorage.getItem('arData_' + arId);
+            if (!arDataJson) {
+                console.error('AR 데이터를 찾을 수 없습니다:', arId);
+                return;
+            }
+            
+            const arData = JSON.parse(arDataJson);
+            console.log('🎯 스캔 AR 로딩 시작:', arId, arData);
+            
+            // 스캔 AR 오버레이 표시
+            const scannerArOverlay = document.getElementById('scannerArOverlay');
+            const scannerArStatus = document.getElementById('scannerArStatus');
+            const scannerArControls = document.getElementById('scannerArControls');
+            
+            scannerArOverlay.style.display = 'block';
+            scannerArStatus.style.display = 'block';
+            scannerArControls.style.display = 'flex';
+            scannerArStatus.textContent = '🎬 AR 영상 로딩 중...';
+            
+            // AR 이미지 영역 계산 및 비디오 위치 설정
+            calculateScannerARPosition(arData);
+            
+            // 비디오 로드
+            if (arData.youtubeUrl) {
+                console.log('📺 YouTube URL 발견, YouTube 오버레이 사용');
+                loadScannerYouTube(arData);
+            } else if (arData.videoData) {
+                console.log('🎬 실제 비디오 데이터 사용');
+                loadScannerVideo(arData);
+            } else {
+                console.log('⚠️ 비디오 데이터 없음, YouTube 폴백 사용');
+                loadScannerYouTube(arData);
+            }
+        }
+
+        // 스캔 AR 숨기기
+        function hideScannerAR() {
+            const scannerArOverlay = document.getElementById('scannerArOverlay');
+            const scannerArStatus = document.getElementById('scannerArStatus');
+            const scannerArControls = document.getElementById('scannerArControls');
+            const scannerOverlayVideo = document.getElementById('scannerOverlayVideo');
+            const scannerOverlayFrame = document.getElementById('scannerOverlayFrame');
+            
+            scannerArOverlay.style.display = 'none';
+            scannerArStatus.style.display = 'none';
+            scannerArControls.style.display = 'none';
+            scannerOverlayVideo.style.display = 'none';
+            scannerOverlayFrame.style.display = 'none';
+            
+            // 비디오 정리
+            if (scannerOverlayVideo.src) {
+                scannerOverlayVideo.pause();
+                scannerOverlayVideo.src = '';
+            }
+            
+            console.log('🔇 스캔 AR 숨김');
+        }
+
+        // 스캔 AR 위치 계산
+        function calculateScannerARPosition(arData) {
+            const scannerOverlayVideo = document.getElementById('scannerOverlayVideo');
+            const scannerOverlayFrame = document.getElementById('scannerOverlayFrame');
+            const scannerContainer = document.getElementById('scannerContainer');
+            
+            // 스캔 컨테이너 크기
+            const containerWidth = scannerContainer.offsetWidth;
+            const containerHeight = scannerContainer.offsetHeight;
+            
+            // AR 비디오 크기 (스캔 프레임 크기에 맞춤)
+            const videoWidth = 280;
+            const videoHeight = 200;
+            
+            // 중앙 위치 계산
+            const left = (containerWidth - videoWidth) / 2;
+            const top = (containerHeight - videoHeight) / 2;
+            
+            // 비디오 위치 설정
+            scannerOverlayVideo.style.left = left + 'px';
+            scannerOverlayVideo.style.top = top + 'px';
+            scannerOverlayVideo.style.width = videoWidth + 'px';
+            scannerOverlayVideo.style.height = videoHeight + 'px';
+            scannerOverlayVideo.style.display = 'block';
+            
+            // 프레임 위치 설정 (비디오보다 약간 크게)
+            const frameMargin = 10;
+            scannerOverlayFrame.style.left = (left - frameMargin) + 'px';
+            scannerOverlayFrame.style.top = (top - frameMargin) + 'px';
+            scannerOverlayFrame.style.width = (videoWidth + frameMargin * 2) + 'px';
+            scannerOverlayFrame.style.height = (videoHeight + frameMargin * 2) + 'px';
+            scannerOverlayFrame.style.display = 'block';
+            
+            console.log('📍 스캔 AR 위치 설정:', { left, top, width: videoWidth, height: videoHeight });
+        }
+
+        // 스캔 YouTube 로드
+        function loadScannerYouTube(arData) {
+            const scannerOverlayVideo = document.getElementById('scannerOverlayVideo');
+            const scannerArStatus = document.getElementById('scannerArStatus');
+            
+            // YouTube URL 설정
+            const youtubeUrl = arData.youtubeUrl || 'https://www.youtube.com/watch?v=MX_UceuxveA';
+            const videoId = youtubeUrl.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([^&\n?#]+)/)?.[1] || 'MX_UceuxveA';
+            const embedUrl = `https://www.youtube.com/embed/${videoId}?autoplay=1&mute=1&loop=1&playlist=${videoId}&rel=0&modestbranding=1&showinfo=0&controls=1`;
+            
+            // iframe 생성
+            const iframe = document.createElement('iframe');
+            iframe.src = embedUrl;
+            iframe.style.width = '100%';
+            iframe.style.height = '100%';
+            iframe.style.border = 'none';
+            iframe.style.borderRadius = '12px';
+            iframe.allow = 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share';
+            iframe.allowFullscreen = true;
+            
+            // 기존 내용 제거하고 iframe 추가
+            scannerOverlayVideo.innerHTML = '';
+            scannerOverlayVideo.appendChild(iframe);
+            
+            scannerArStatus.textContent = '📺 YouTube 영상 재생 중';
+            console.log('📺 스캔 YouTube 로드 완료:', videoId);
+        }
+
+        // 스캔 비디오 로드
+        function loadScannerVideo(arData) {
+            const scannerOverlayVideo = document.getElementById('scannerOverlayVideo');
+            const scannerArStatus = document.getElementById('scannerArStatus');
+            
+            // 비디오 요소 초기화
+            scannerOverlayVideo.pause();
+            scannerOverlayVideo.currentTime = 0;
+            scannerOverlayVideo.src = '';
+            scannerOverlayVideo.innerHTML = '';
+            
+            // 비디오 속성 설정
+            scannerOverlayVideo.setAttribute('autoplay', 'true');
+            scannerOverlayVideo.setAttribute('loop', 'true');
+            scannerOverlayVideo.setAttribute('muted', 'true');
+            scannerOverlayVideo.setAttribute('playsinline', 'true');
+            
+            // 비디오 소스 설정
+            scannerOverlayVideo.src = arData.videoData;
+            
+            // 비디오 로드 완료 이벤트
+            scannerOverlayVideo.onloadeddata = () => {
+                console.log('🎬 스캔 비디오 데이터 로드 완료');
+                scannerArStatus.textContent = '🎬 AR 영상 재생 중';
+                
+                // 비디오 재생 시도
+                scannerOverlayVideo.play().then(() => {
+                    console.log('✅ 스캔 비디오 재생 시작');
+                }).catch(error => {
+                    console.error('❌ 스캔 비디오 재생 실패:', error);
+                    scannerArStatus.textContent = '❌ 비디오 재생 실패';
+                });
+            };
+            
+            // 비디오 로드 실패 시
+            scannerOverlayVideo.onerror = (e) => {
+                console.error('❌ 스캔 비디오 로드 실패:', e);
+                scannerArStatus.textContent = '❌ 비디오 로드 실패';
+                // YouTube 폴백
+                loadScannerYouTube(arData);
+            };
+        }
+
+        // 스캔 비디오 소리 토글
+        function toggleScannerVideoSound() {
+            const scannerOverlayVideo = document.getElementById('scannerOverlayVideo');
+            const scannerArStatus = document.getElementById('scannerArStatus');
+            
+            if (scannerOverlayVideo.muted) {
+                scannerOverlayVideo.muted = false;
+                scannerArStatus.textContent = '🔊 소리 ON';
+            } else {
+                scannerOverlayVideo.muted = true;
+                scannerArStatus.textContent = '🔇 소리 OFF';
+            }
+            
+            // 3초 후 원래 메시지로 복원
+            setTimeout(() => {
+                scannerArStatus.textContent = '🎬 AR 영상 재생 중';
+            }, 3000);
+        }
+
+        // 스캔 AR 닫기
+        function closeScannerAR() {
+            hideScannerAR();
+            console.log('✕ 스캔 AR 닫기');
         }
 
         function startImageDetectionOverlay(arData) {
