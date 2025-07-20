@@ -2586,7 +2586,9 @@
                             <span style="font-size: 12px; opacity: 0.6;">진행률: ${progress}%</span><br>
                             <span style="font-size: 10px; opacity: 0.5;">검색된 이미지: ${arKeys.length}개</span>
                         `;
-                    } else if (detectionCount >= maxDetections) {
+                    }
+                    
+                    if (detectionCount >= maxDetections) {
                         clearInterval(detectInterval);
 
                         // 최대 시도 후에도 인식 실패 - 가장 유사한 것 사용
