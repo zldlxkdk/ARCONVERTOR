@@ -1738,12 +1738,12 @@
             progressDiv.innerHTML = `
                 <div class="progress">
                     <div class="spinner"></div>
-                    특수 AR 마커 이미지 생성 중...
+                    AR 이미지 생성 중...
                 </div>
             `;
 
             try {
-                console.log('🎯 특수 AR 마커 생성 프로세스 시작');
+                console.log('🎯 AR 이미지 생성 프로세스 시작');
                 
                 // 입력 데이터 검증
                 if (!extractedFrame) {
@@ -1754,11 +1754,11 @@
                     throw new Error('처리된 비디오가 없습니다. 먼저 비디오를 업로드하고 처리해주세요.');
                 }
                 
-                // 특수 마커가 포함된 AR 이미지 생성
-                const specialARImageDataURL = await generateSpecialARMarker(extractedFrame);
+                // AR 이미지 생성
+                const specialARImageDataURL = await generateCleanARImage(extractedFrame);
                 
                 if (!specialARImageDataURL) {
-                    throw new Error('특수 마커 이미지 생성 실패');
+                    throw new Error('AR 이미지 생성 실패');
                 }
                 
                 console.log('📹 비디오 데이터 변환 시작');
@@ -1768,15 +1768,15 @@
                 arTargetData = {
                     id: arId,
                     videoData: videoBase64,
-                    targetImage: specialARImageDataURL, // 특수 마커 이미지 사용
+                    targetImage: specialARImageDataURL, // AR 이미지 사용
                     originalFrame: extractedFrame, // 원본 프레임 별도 저장
                     fileName: uploadedVideo.name,
                     duration: endTime - startTime,
                     createdAt: new Date().toISOString(),
                     fallbackUrl: FALLBACK_YOUTUBE_URL,
                     type: 'ar_image_video',
-                    hasSpecialMarkers: true,
-                    markerType: 'advanced_tracking'
+                    hasSpecialMarkers: false,
+                    markerType: 'clean_image'
                 };
                 
                 localStorage.setItem('arData_' + arId, JSON.stringify(arTargetData));
@@ -1785,39 +1785,39 @@
                 resultDiv.innerHTML = `
                     <div class="ar-result">
                         <div class="check-icon">✅</div>
-                        <div style="margin: 10px 0; font-weight: 600;">특수 AR 마커 이미지 생성 완료!</div>
+                        <div style="margin: 10px 0; font-weight: 600;">AR 이미지 생성 완료!</div>
                         
                         <div class="target-image-container">
-                            <div style="color: #333; font-weight: 600; margin-bottom: 10px;">🎯 특수 AR 마커 이미지</div>
+                            <div style="color: #333; font-weight: 600; margin-bottom: 10px;">🎯 AR 이미지</div>
                             <img src="${specialARImageDataURL}" class="target-image" alt="Special AR Marker Image">
                             <div style="color: #666; font-size: 12px; margin-top: 10px;">
                                 ID: ${arId}<br>
                                 길이: ${formatTime(arTargetData.duration)}<br>
-                                마커: 정밀 추적 시스템<br>
+                                마커: 깔끔한 이미지<br>
                                 폴백: YouTube 영상
                             </div>
                         </div>
                         
                         <div class="marker-features" style="background: rgba(76, 175, 80, 0.1); border: 1px solid rgba(76, 175, 80, 0.3); border-radius: 8px; padding: 12px; margin: 15px 0;">
-                            <div style="font-weight: 600; color: #4CAF50; margin-bottom: 8px;">🔍 포함된 특수 마커:</div>
+                            <div style="font-weight: 600; color: #4CAF50; margin-bottom: 8px;">🔍 이미지 특징:</div>
                             <ul style="font-size: 12px; line-height: 1.4; margin: 0; padding-left: 20px;">
-                                <li>📐 4개 코너 마커: 방향별 고유 패턴으로 정확한 위치 추적</li>
-                                <li>📹 비디오 영역 마커: YouTube 재생 위치 정확히 정의</li>
-                                <li>🎯 중앙 추적 마커: 실시간 위치 및 각도 감지</li>
-                                <li>📏 크기/회전 마커: 동적 스케일링 및 회전 보정</li>
-                                <li>🔢 디지털 시그니처: 고유 식별 바코드</li>
+                                <li>🖼️ 깔끔한 원본 이미지: 마커 없이 깔끔한 AR 이미지</li>
+                                <li>📹 비디오 연동: YouTube 재생과 완벽 연동</li>
+                                <li>🎯 정확한 인식: 스테가노그래피 패턴으로 정확한 인식</li>
+                                <li>📏 자동 크기 조정: 다양한 크기에서 안정적 인식</li>
+                                <li>🔢 고유 식별: 내장된 디지털 시그니처</li>
                             </ul>
                         </div>
                         
                         <div style="font-size: 13px; opacity: 0.9; margin: 15px 0;">
-                            📱 특수 마커를 스캔하면 정확한 위치에 AR 비디오가 재생됩니다<br>
+                            📱 깔끔한 이미지를 스캔하면 정확한 위치에 AR 비디오가 재생됩니다<br>
                             🖨️ 인쇄하거나 다른 화면에 표시해서 사용하세요<br>
-                            🎯 향상된 추적 정확도로 안정적인 AR 경험을 제공합니다
+                            🎯 마커 없는 깔끔한 디자인으로 자연스러운 AR 경험을 제공합니다
                         </div>
                         
                         <div class="download-section">
                             <button class="download-btn" onclick="downloadARImage('${arId}')">
-                                💾 특수 마커 저장
+                                💾 AR 이미지 저장
                             </button>
                             <button class="download-btn share-btn" onclick="shareARImage('${arId}')">
                                 📤 공유하기
@@ -1830,16 +1830,16 @@
                 progressDiv.innerHTML = '';
                 resultDiv.innerHTML = `
                     <div class="progress" style="background: rgba(255,0,0,0.2);">
-                        ❌ 특수 AR 마커 생성 실패: ${error.message}
+                        ❌ AR 이미지 생성 실패: ${error.message}
                     </div>
                 `;
             }
         }
 
-        async function generateSpecialARMarker(originalFrameDataURL) {
+        async function generateCleanARImage(originalFrameDataURL) {
             return new Promise(async (resolve, reject) => {
                 try {
-                    console.log('🎯 특수 AR 마커 생성 시작');
+                    console.log('🎯 깔끔한 AR 이미지 생성 시작');
                     
                     // 입력 데이터 검증
                     if (!originalFrameDataURL || typeof originalFrameDataURL !== 'string') {
@@ -1919,46 +1919,18 @@
                         const testPattern = extractSteganographyPattern(ctx.getImageData(0, 0, arSize, arSize).data, arSize, arSize);
                         console.log(`🔍 삽입된 패턴 확인: ${testPattern.length}개 패턴 포인트`);
                         
-                        // === 간단한 AR 마커 시스템 ===
+                        // === 마커 제거 - 원본 이미지만 사용 ===
+                        // 마커 없이 원본 이미지만 사용하여 깔끔한 AR 이미지 생성
                         
-                        // 1. 간단한 테두리만 추가
-                        ctx.strokeStyle = '#000000';
-                        ctx.lineWidth = 8;
-                        ctx.strokeRect(imageMargin - 8, imageMargin - 8, imageSize + 16, imageSize + 16);
-                        
-                        // 2. 4개 코너에 간단한 마커만 추가
-                        const cornerSize = 40;
-                        const cornerMargin = 10;
-                        const corners = [
-                            [cornerMargin, cornerMargin],
-                            [arSize - cornerMargin - cornerSize, cornerMargin],
-                            [cornerMargin, arSize - cornerMargin - cornerSize],
-                            [arSize - cornerMargin - cornerSize, arSize - cornerMargin - cornerSize]
-                        ];
-                        
-                        corners.forEach(([x, y], index) => {
-                            // 간단한 사각형 마커
-                            ctx.fillStyle = '#000000';
-                            ctx.fillRect(x, y, cornerSize, cornerSize);
-                            
-                            // 흰색 내부
-                            ctx.fillStyle = '#ffffff';
-                            ctx.fillRect(x + 4, y + 4, cornerSize - 8, cornerSize - 8);
-                            
-                            // 중앙에 작은 검은 점
-                            ctx.fillStyle = '#000000';
-                            ctx.fillRect(x + cornerSize/2 - 4, y + cornerSize/2 - 4, 8, 8);
-                        });
-                        
-                            // 완성된 특수 마커 이미지 반환
-                            const specialMarkerDataURL = canvas.toDataURL('image/png', 0.95);
-                            console.log('✅ 특수 마커 생성 완료');
-                            resolve(specialMarkerDataURL);
+                            // 완성된 깔끔한 AR 이미지 반환
+                            const cleanARImageDataURL = canvas.toDataURL('image/png', 0.95);
+                            console.log('✅ 깔끔한 AR 이미지 생성 완료');
+                            resolve(cleanARImageDataURL);
                             
                         } catch (drawError) {
                             clearTimeout(timeoutId);
-                            console.error('🚫 마커 그리기 오류:', drawError);
-                            reject(new Error('특수 마커 그리기 실패: ' + drawError.message));
+                            console.error('🚫 AR 이미지 그리기 오류:', drawError);
+                            reject(new Error('AR 이미지 그리기 실패: ' + drawError.message));
                         }
                     };
                     
@@ -1976,8 +1948,8 @@
                     img.src = originalFrameDataURL;
                     
                 } catch (error) {
-                    console.error('🚫 특수 마커 생성 오류:', error);
-                    reject(new Error('특수 마커 생성 실패: ' + error.message));
+                    console.error('🚫 AR 이미지 생성 오류:', error);
+                    reject(new Error('AR 이미지 생성 실패: ' + error.message));
                 }
             });
         }
