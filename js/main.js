@@ -1061,43 +1061,43 @@
                 console.log('📱 모바일 카메라 접근 시도 시작');
                 console.log('📱 모바일 환경:', isMobile, 'iOS:', isIOS);
                 
-                // 1단계: 가장 간단한 설정으로 시도
+                // 1단계: 전면 카메라 우선 시도
                 try {
-                    console.log('📱 1단계: 기본 카메라 접근 시도');
+                    console.log('📱 1단계: 전면 카메라 접근 시도');
                     stream = await navigator.mediaDevices.getUserMedia({ 
-                        video: true 
+                        video: { 
+                            facingMode: 'user',
+                            width: { ideal: 1280, min: 640 },
+                            height: { ideal: 720, min: 480 }
+                        } 
                     });
-                    console.log('✅ 기본 카메라 접근 성공');
-                } catch (basicError) {
-                    console.warn('❌ 기본 카메라 접근 실패:', basicError.message);
+                    console.log('✅ 전면 카메라 접근 성공');
+                } catch (userError) {
+                    console.warn('❌ 전면 카메라 접근 실패:', userError.message);
                     
-                    // 2단계: 후면 카메라 시도
+                    // 2단계: 기본 카메라 시도
                     try {
-                        console.log('📱 2단계: 후면 카메라 접근 시도');
+                        console.log('📱 2단계: 기본 카메라 접근 시도');
                         stream = await navigator.mediaDevices.getUserMedia({ 
-                            video: { 
-                                facingMode: 'environment',
-                                width: { ideal: 1280, min: 640 },
-                                height: { ideal: 720, min: 480 }
-                            } 
+                            video: true 
                         });
-                        console.log('✅ 후면 카메라 접근 성공');
-                    } catch (envError) {
-                        console.warn('❌ 후면 카메라 접근 실패:', envError.message);
+                        console.log('✅ 기본 카메라 접근 성공');
+                    } catch (basicError) {
+                        console.warn('❌ 기본 카메라 접근 실패:', basicError.message);
                         
-                        // 3단계: 전면 카메라 시도
+                        // 3단계: 후면 카메라 시도
                         try {
-                            console.log('📱 3단계: 전면 카메라 접근 시도');
+                            console.log('📱 3단계: 후면 카메라 접근 시도');
                             stream = await navigator.mediaDevices.getUserMedia({ 
                                 video: { 
-                                    facingMode: 'user',
+                                    facingMode: 'environment',
                                     width: { ideal: 1280, min: 640 },
                                     height: { ideal: 720, min: 480 }
                                 } 
                             });
-                            console.log('✅ 전면 카메라 접근 성공');
-                        } catch (userError) {
-                            console.warn('❌ 전면 카메라 접근 실패:', userError.message);
+                            console.log('✅ 후면 카메라 접근 성공');
+                        } catch (envError) {
+                            console.warn('❌ 후면 카메라 접근 실패:', envError.message);
                             
                             // 4단계: 매우 낮은 해상도로 시도
                             try {
@@ -1261,41 +1261,43 @@
                 let stream = null;
                 
                 try {
-                    // 모바일 최적화: 매우 간단한 카메라 접근
-                    console.log('📱 모바일 카메라 접근 시도 (startImageScan) - 매우 간단한 설정');
-                    
-                    // 모바일에서 가장 안정적인 방법: 최소한의 설정으로 시작
+                    // 전면 카메라 우선 시도
+                    console.log('📱 전면 카메라 접근 시도 (startImageScan)');
                     stream = await navigator.mediaDevices.getUserMedia({ 
-                        video: true // 가장 간단한 설정
+                        video: { 
+                            facingMode: 'user',
+                            width: { ideal: 1280, min: 640 },
+                            height: { ideal: 720, min: 480 }
+                        } 
                     });
-                    console.log('✅ 모바일 카메라 접근 성공 (startImageScan) - 기본 설정');
+                    console.log('✅ 전면 카메라 접근 성공 (startImageScan)');
                     
-                } catch (basicError) {
-                    console.warn('기본 카메라 접근 실패:', basicError.message);
+                } catch (userError) {
+                    console.warn('전면 카메라 접근 실패:', userError.message);
                     
                     try {
-                        // 후면 카메라 시도
-                        console.log('📱 후면 카메라 접근 시도 (startImageScan)');
+                        // 기본 카메라 시도
+                        console.log('📱 기본 카메라 접근 시도 (startImageScan)');
                         stream = await navigator.mediaDevices.getUserMedia({ 
-                            video: { 
-                                facingMode: 'environment'
-                            } 
+                            video: true // 가장 간단한 설정
                         });
-                        console.log('✅ 후면 카메라 접근 성공 (startImageScan)');
-                    } catch (envError) {
-                        console.warn('후면 카메라 접근 실패:', envError.message);
+                        console.log('✅ 모바일 카메라 접근 성공 (startImageScan) - 기본 설정');
+                    } catch (basicError) {
+                        console.warn('기본 카메라 접근 실패:', basicError.message);
                         
                         try {
-                            // 전면 카메라 시도
-                            console.log('📱 전면 카메라 접근 시도 (startImageScan)');
+                            // 후면 카메라 시도
+                            console.log('📱 후면 카메라 접근 시도 (startImageScan)');
                             stream = await navigator.mediaDevices.getUserMedia({ 
                                 video: { 
-                                    facingMode: 'user'
+                                    facingMode: 'environment',
+                                    width: { ideal: 1280, min: 640 },
+                                    height: { ideal: 720, min: 480 }
                                 } 
                             });
-                            console.log('✅ 전면 카메라 접근 성공 (startImageScan)');
-                        } catch (userError) {
-                            console.warn('전면 카메라 접근 실패:', userError.message);
+                            console.log('✅ 후면 카메라 접근 성공 (startImageScan)');
+                        } catch (envError) {
+                            console.warn('후면 카메라 접근 실패:', envError.message);
                             
                             try {
                                 // 매우 낮은 해상도로 시도
@@ -1306,8 +1308,11 @@
                                         height: { ideal: 240, min: 120 }
                                     }
                                 });
-                                console.log('✅ 낮은 해상도 카메라 접근 성공 (startImageScan)');
+                                                                console.log('✅ 낮은 해상도 카메라 접근 성공 (startImageScan)');
                             } catch (finalError) {
+                                console.error('모든 카메라 접근 시도 실패:', finalError);
+                                throw new Error(`모바일 카메라 접근 실패: ${finalError.message}`);
+                            }
                                 console.error('모든 카메라 접근 시도 실패:', finalError);
                                 throw new Error(`모바일 카메라 접근 실패: ${finalError.message}`);
                             }
@@ -2558,10 +2563,10 @@
                 return;
             }
             
-            // 카메라 스트림 시작 (백그라운드용)
+            // 카메라 스트림 시작 (백그라운드용) - 전면 카메라 우선
             navigator.mediaDevices.getUserMedia({ 
                 video: { 
-                    facingMode: { ideal: 'environment' },
+                    facingMode: { ideal: 'user' },
                     width: { ideal: 1920 },
                     height: { ideal: 1080 }
                 } 
@@ -4725,7 +4730,7 @@
                 
                 const stream = await navigator.mediaDevices.getUserMedia({
                     video: {
-                        facingMode: 'environment', // 후면 카메라 우선
+                        facingMode: 'user', // 전면 카메라 우선
                         width: { ideal: 1280 },
                         height: { ideal: 720 }
                     }
