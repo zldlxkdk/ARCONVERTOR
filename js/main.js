@@ -1308,11 +1308,8 @@
                                         height: { ideal: 240, min: 120 }
                                     }
                                 });
-                                                                console.log('✅ 낮은 해상도 카메라 접근 성공 (startImageScan)');
+                                console.log('✅ 낮은 해상도 카메라 접근 성공 (startImageScan)');
                             } catch (finalError) {
-                                console.error('모든 카메라 접근 시도 실패:', finalError);
-                                throw new Error(`모바일 카메라 접근 실패: ${finalError.message}`);
-                            }
                                 console.error('모든 카메라 접근 시도 실패:', finalError);
                                 throw new Error(`모바일 카메라 접근 실패: ${finalError.message}`);
                             }
