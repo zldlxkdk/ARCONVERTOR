@@ -2226,105 +2226,12 @@
             } catch (error) {
                 console.error('카메라 접근 전체 실패:', error);
                 
-                // 사용자에게 상세한 안내 제공
+                // 간단한 오류 메시지만 표시
                 let errorMessage = '카메라 접근 실패';
-                let helpMessage = '';
                 
-                if (error.name === 'NotAllowedError' || error.message.includes('Permission denied')) {
-                    errorMessage = '카메라 권한이 거부되었습니다';
-                    helpMessage = `
-                        <div style="margin-top: 15px; font-size: 12px;">
-                            <div style="font-weight: 600; margin-bottom: 10px;">📱 해결 방법:</div>
-                            <div style="text-align: left;">
-                                • 브라우저 주소창의 🔒 아이콘 클릭<br>
-                                • 카메라 권한을 "허용"으로 변경<br>
-                                • 페이지 새로고침 후 다시 시도<br>
-                                • 또는 브라우저 설정에서 카메라 권한 확인
-                            </div>
-                        </div>
-                    `;
-                } else if (error.name === 'NotFoundError' || error.message.includes('Requested device not found')) {
-                    errorMessage = '카메라를 찾을 수 없습니다';
-                    helpMessage = `
-                        <div style="margin-top: 15px; font-size: 12px;">
-                            <div style="font-weight: 600; margin-bottom: 10px;">📱 해결 방법:</div>
-                            <div style="text-align: left;">
-                                • 다른 카메라 앱이 실행중인지 확인<br>
-                                • 브라우저를 완전히 종료 후 다시 실행<br>
-                                • 기기 재시작 후 다시 시도<br>
-                                • 다른 브라우저에서 시도
-                            </div>
-                        </div>
-                    `;
-                } else if (error.name === 'NotSupportedError' || error.message.includes('not supported')) {
-                    errorMessage = '이 브라우저는 카메라를 지원하지 않습니다';
-                    helpMessage = `
-                        <div style="margin-top: 15px; font-size: 12px;">
-                            <div style="font-weight: 600; margin-bottom: 10px;">📱 해결 방법:</div>
-                            <div style="text-align: left;">
-                                • Chrome, Safari, Firefox 등 최신 브라우저 사용<br>
-                                • HTTPS 연결인지 확인 (http:// → https://)<br>
-                                • 브라우저 업데이트<br>
-                                • 앱 내 브라우저가 아닌 기본 브라우저 사용
-                            </div>
-                        </div>
-                    `;
-                } else if (error.name === 'OverconstrainedError' || error.message.includes('Could not start video source')) {
-                    errorMessage = '카메라 설정을 조정할 수 없습니다';
-                    helpMessage = `
-                        <div style="margin-top: 15px; font-size: 12px;">
-                            <div style="font-weight: 600; margin-bottom: 10px;">📱 해결 방법:</div>
-                            <div style="text-align: left;">
-                                • 다른 앱에서 카메라 사용 중인지 확인<br>
-                                • 카메라 앱 강제 종료 후 다시 시도<br>
-                                • 기기 재시작<br>
-                                • 아래 "카메라 없이 체험" 버튼 사용
-                            </div>
-                        </div>
-                    `;
-                }
-                
-                // 오류 UI 표시
+                // 간단한 오류 메시지만 표시
                 document.getElementById('scannerContainer').style.display = 'none';
-                document.getElementById('startScanBtn').style.display = 'none';
-                
-                const container = document.getElementById('scannerContainer').parentElement;
-                const errorDiv = document.createElement('div');
-                errorDiv.className = 'scan-error';
-                errorDiv.style.cssText = `
-                    background: rgba(244, 67, 54, 0.1);
-                    border: 1px solid rgba(244, 67, 54, 0.3);
-                    border-radius: 10px;
-                    padding: 20px;
-                    margin: 15px 0;
-                    text-align: center;
-                `;
-                
-                errorDiv.innerHTML = `
-                    <div style="font-size: 16px; font-weight: 600; margin-bottom: 10px; color: #ff6b35;">
-                        ❌ ${errorMessage}
-                    </div>
-                    <div style="font-size: 13px; opacity: 0.9; margin-bottom: 15px;">
-                        ${error.message}
-                    </div>
-                    ${helpMessage}
-                    <div style="margin-top: 20px; display: flex; gap: 10px;">
-                        <button class="btn" onclick="retryCamera()" style="flex: 1; font-size: 12px; padding: 8px 16px;">
-                            🔄 다시 시도
-                        </button>
-                        <button class="btn" onclick="simulateImageDetection()" style="flex: 1; font-size: 12px; padding: 8px 16px; background: #4CAF50;">
-                            📷 카메라 없이 체험
-                        </button>
-                    </div>
-                `;
-                
-                // 기존 오류 메시지 제거
-                const existingError = container.querySelector('.scan-error');
-                if (existingError) {
-                    existingError.remove();
-                }
-                
-                container.appendChild(errorDiv);
+                document.getElementById('startScanBtn').style.display = 'block';
             }
         }
 
@@ -2587,26 +2494,9 @@
             const scanStatusFullscreen = document.getElementById('scanStatusFullscreen');
             const scanInstructionsFullscreen = document.getElementById('scanInstructionsFullscreen');
             
-            let errorMessage = '카메라 접근 실패';
-            let helpMessage = '';
-            
-            if (error.name === 'NotAllowedError' || error.message.includes('Permission denied')) {
-                errorMessage = '카메라 권한이 거부되었습니다';
-                helpMessage = '브라우저 설정에서 카메라 권한을 허용해주세요';
-            } else if (error.name === 'NotFoundError') {
-                errorMessage = '카메라를 찾을 수 없습니다';
-                helpMessage = '다른 앱이 카메라를 사용 중인지 확인해주세요';
-            } else {
-                errorMessage = '카메라 초기화 실패';
-                helpMessage = '브라우저를 새로고침하거나 다른 브라우저를 사용해보세요';
-            }
-            
-            scanStatusFullscreen.textContent = `❌ ${errorMessage}`;
+            scanStatusFullscreen.textContent = `❌ 카메라 오류`;
             scanInstructionsFullscreen.innerHTML = `
-                ${helpMessage}<br>
-                <button class="btn" onclick="closeFullscreenScan()" style="margin-top: 15px; background: #ff6b35; color: white; border: none; padding: 10px 20px; border-radius: 20px;">
-                    돌아가기
-                </button>
+                <span style="color: #ff6b35;">카메라 접근에 실패했습니다</span>
             `;
         }
 
