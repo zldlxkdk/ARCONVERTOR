@@ -940,9 +940,45 @@ body {
     }
 
     /* 모바일에서 줌 방지 */
-    input, textarea, select {
-        font-size: 16px;
-    }
+input, textarea, select {
+    font-size: 16px;
+}
+
+/* 로딩 오버레이 숨김 */
+.loading-overlay {
+    display: none !important;
+}
+
+.spinner {
+    display: none !important;
+}
+
+/* 포인터 이벤트 활성화 */
+body {
+    pointer-events: auto !important;
+}
+
+.container {
+    pointer-events: auto !important;
+}
+
+/* 모든 버튼 클릭 가능하도록 */
+button {
+    pointer-events: auto !important;
+    cursor: pointer !important;
+}
+
+/* 모드 버튼 활성화 */
+.mode-btn {
+    pointer-events: auto !important;
+    cursor: pointer !important;
+}
+
+/* 업로드 영역 활성화 */
+.upload-area {
+    pointer-events: auto !important;
+    cursor: pointer !important;
+}
 }
 
 /* iOS Safari 최적화 */

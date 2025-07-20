@@ -19,25 +19,226 @@
 
         // 모드 전환
         function switchMode(mode) {
+            console.log(`🔄 모드 전환: ${mode}`);
             currentMode = mode;
             
+            // 모든 모드 버튼 비활성화
             document.querySelectorAll('.mode-btn').forEach(btn => {
                 btn.classList.remove('active');
             });
-            event.target.classList.add('active');
             
+            // 클릭된 버튼 활성화
+            const clickedButton = event.target;
+            if (clickedButton && clickedButton.classList.contains('mode-btn')) {
+                clickedButton.classList.add('active');
+            }
+            
+            // 모든 모드 컨테이너 비활성화
             document.querySelectorAll('.create-mode, .scan-mode').forEach(el => {
                 el.classList.remove('active');
             });
-            document.querySelector(`.${mode}-mode`).classList.add('active');
+            
+            // 선택된 모드 컨테이너 활성화
+            const targetMode = document.getElementById(`${mode}Mode`);
+            if (targetMode) {
+                targetMode.classList.add('active');
+            } else {
+                console.warn(`⚠️ ${mode} 모드 컨테이너를 찾을 수 없습니다`);
+            }
+            
+            console.log(`✅ ${mode} 모드로 전환 완료`);
         }
 
-        // 비디오 업로드 핸들링
-        document.getElementById('videoInput').addEventListener('change', handleVideoUpload);
-        setupDragDrop();
+        // DOM이 로드된 후 초기화
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('🚀 AR 이미지 생성기 초기화 시작');
+            
+            // 비디오 업로드 핸들링
+            const videoInput = document.getElementById('videoInput');
+            if (videoInput) {
+                videoInput.addEventListener('change', handleVideoUpload);
+            }
+            
+            setupDragDrop();
+            
+            // 모바일 최적화 초기화
+            initializeMobileOptimizations();
+            
+            console.log('✅ AR 이미지 생성기 초기화 완료');
+        });
+
+        // 스캔 시작 함수
+        function startScan() {
+            console.log('🔍 AR 스캔 시작');
+            startFullscreenScan();
+        }
+
+        // AR 뷰어 닫기 함수
+        function closeAR() {
+            console.log('❌ AR 뷰어 닫기');
+            const arViewer = document.getElementById('arViewer');
+            if (arViewer) {
+                arViewer.classList.remove('active');
+            }
+        }
+
+        // 전체 화면 스캔 닫기 함수
+        function closeFullscreenScan() {
+            console.log('❌ 전체 화면 스캔 닫기');
+            const fullscreenScanner = document.getElementById('fullscreenScanner');
+            if (fullscreenScanner) {
+                fullscreenScanner.classList.remove('active');
+            }
+            
+            // 카메라 스트림 정리
+            if (window.currentStream) {
+                window.currentStream.getTracks().forEach(track => track.stop());
+            }
+            
+            // 타임아웃 정리
+            if (scanTimeout) {
+                clearTimeout(scanTimeout);
+                scanTimeout = null;
+            }
+        }
+
+        // 비디오 시간 업데이트 함수
+        function updateVideoTime() {
+            const timeSlider = document.getElementById('timeSlider');
+            const timeDisplay = document.getElementById('timeDisplay');
+            const videoPreview = document.getElementById('videoPreview');
+            
+            if (timeSlider && timeDisplay && videoPreview) {
+                const video = videoPreview.querySelector('video');
+                if (video) {
+                    const time = parseFloat(timeSlider.value);
+                    video.currentTime = time;
+                    timeDisplay.textContent = formatTime(time);
+                }
+            }
+        }
+
+        // 프레임 추출 함수
+        function extractFrame() {
+            console.log('📸 프레임 추출 시작');
+            const videoPreview = document.getElementById('videoPreview');
+            const frameCanvas = document.getElementById('frameCanvas');
+            const generateBtn = document.getElementById('generateBtn');
+            
+            if (!videoPreview || !frameCanvas) {
+                console.error('❌ 필요한 요소를 찾을 수 없습니다');
+                return;
+            }
+            
+            const video = videoPreview.querySelector('video');
+            if (!video) {
+                console.error('❌ 비디오 요소를 찾을 수 없습니다');
+                return;
+            }
+            
+            // 캔버스 설정
+            const ctx = frameCanvas.getContext('2d');
+            frameCanvas.width = video.videoWidth;
+            frameCanvas.height = video.videoHeight;
+            
+            // 현재 프레임을 캔버스에 그리기
+            ctx.drawImage(video, 0, 0, frameCanvas.width, frameCanvas.height);
+            
+            // 추출된 프레임 저장
+            extractedFrame = frameCanvas.toDataURL('image/png');
+            
+            // 2단계 활성화
+            document.getElementById('step2').classList.add('active');
+            
+            // 생성 버튼 활성화
+            if (generateBtn) {
+                generateBtn.disabled = false;
+            }
+            
+            console.log('✅ 프레임 추출 완료');
+        }
+
+        // AR 이미지 생성 함수
+        function generateARImage() {
+            console.log('🎯 AR 이미지 생성 시작');
+            
+            if (!extractedFrame) {
+                console.error('❌ 추출된 프레임이 없습니다');
+                return;
+            }
+            
+            // 타겟 이미지 표시
+            const targetImage = document.getElementById('targetImage');
+            if (targetImage) {
+                targetImage.src = extractedFrame;
+                targetImage.style.display = 'block';
+            }
+            
+            // 3단계 활성화
+            document.getElementById('step3').classList.add('active');
+            
+            // 다운로드 버튼 활성화
+            const downloadBtn = document.getElementById('downloadBtn');
+            const shareBtn = document.getElementById('shareBtn');
+            
+            if (downloadBtn) downloadBtn.disabled = false;
+            if (shareBtn) shareBtn.disabled = false;
+            
+            // 4단계 활성화
+            document.getElementById('step4').classList.add('active');
+            
+            console.log('✅ AR 이미지 생성 완료');
+        }
+
+        // 다운로드 함수
+        function downloadTarget() {
+            if (!extractedFrame) {
+                console.error('❌ 다운로드할 이미지가 없습니다');
+                return;
+            }
+            
+            const link = document.createElement('a');
+            link.download = 'ar-target-image.png';
+            link.href = extractedFrame;
+            link.click();
+            
+            console.log('✅ AR 이미지 다운로드 완료');
+        }
+
+        // 공유 함수
+        function shareTarget() {
+            if (!extractedFrame) {
+                console.error('❌ 공유할 이미지가 없습니다');
+                return;
+            }
+            
+            if (navigator.share) {
+                // Web Share API 사용
+                fetch(extractedFrame)
+                    .then(res => res.blob())
+                    .then(blob => {
+                        const file = new File([blob], 'ar-target-image.png', { type: 'image/png' });
+                        navigator.share({
+                            title: 'AR 이미지',
+                            text: '생성된 AR 이미지를 확인해보세요!',
+                            files: [file]
+                        });
+                    });
+            } else {
+                // 폴백: 다운로드
+                downloadTarget();
+            }
+            
+            console.log('✅ AR 이미지 공유 완료');
+        }
 
         function setupDragDrop() {
             const uploadArea = document.querySelector('.upload-area');
+            
+            if (!uploadArea) {
+                console.warn('⚠️ 업로드 영역을 찾을 수 없습니다');
+                return;
+            }
             
             uploadArea.addEventListener('dragover', (e) => {
                 e.preventDefault();
@@ -57,6 +258,8 @@
                     handleVideoFile(files[0]);
                 }
             });
+            
+            console.log('✅ 드래그 앤 드롭 설정 완료');
         }
 
         function handleVideoUpload(event) {
@@ -65,56 +268,92 @@
         }
 
         async function handleVideoFile(file) {
+            console.log('📹 비디오 파일 처리 시작:', file.name);
             uploadedVideo = file;
             
             const reader = new FileReader();
             reader.onload = async function(e) {
                 const preview = document.getElementById('videoPreview');
-                preview.innerHTML = `
-                    <video src="${e.target.result}" class="preview-video" controls muted></video>
-                    <div style="font-size: 12px; opacity: 0.8; margin-top: 5px;">
-                        ✅ ${file.name} (${(file.size / 1024 / 1024).toFixed(2)}MB)
-                    </div>
-                `;
+                if (preview) {
+                    preview.innerHTML = `
+                        <video src="${e.target.result}" class="preview-video" controls muted></video>
+                        <div style="font-size: 12px; opacity: 0.8; margin-top: 5px;">
+                            ✅ ${file.name} (${(file.size / 1024 / 1024).toFixed(2)}MB)
+                        </div>
+                    `;
+                    preview.style.display = 'block';
+                }
                 
-                document.getElementById('step1').classList.add('active');
+                // 1단계 활성화
+                const step1 = document.getElementById('step1');
+                if (step1) {
+                    step1.classList.add('active');
+                }
                 
+                // 비디오 에디터 초기화
                 await initVideoEditor(e.target.result);
+                
+                console.log('✅ 비디오 파일 처리 완료');
             };
             reader.readAsDataURL(file);
         }
 
         async function initVideoEditor(videoSrc) {
-            const videoEditor = document.getElementById('videoEditor');
-            const editVideo = document.getElementById('editVideo');
-            const currentTimeSlider = document.getElementById('currentTimeSlider');
+            console.log('🎬 비디오 에디터 초기화 시작');
             
-            videoEditor.style.display = 'block';
-            editVideo.src = videoSrc;
-            videoElement = editVideo;
+            const timeSlider = document.getElementById('timeSlider');
+            const timeDisplay = document.getElementById('timeDisplay');
+            const frameCanvas = document.getElementById('frameCanvas');
+            
+            if (!timeSlider || !timeDisplay || !frameCanvas) {
+                console.warn('⚠️ 비디오 에디터 요소를 찾을 수 없습니다');
+                return;
+            }
+            
+            // 비디오 요소 가져오기
+            const videoPreview = document.getElementById('videoPreview');
+            const video = videoPreview ? videoPreview.querySelector('video') : null;
+            
+            if (!video) {
+                console.warn('⚠️ 비디오 요소를 찾을 수 없습니다');
+                return;
+            }
+            
+            videoElement = video;
             
             await new Promise((resolve) => {
-                editVideo.onloadedmetadata = () => {
-                    videoDuration = editVideo.duration;
+                video.onloadedmetadata = () => {
+                    videoDuration = video.duration;
                     endTime = Math.min(15, videoDuration);
                     
-                    currentTimeSlider.max = videoDuration;
+                    // 슬라이더 설정
+                    timeSlider.max = videoDuration;
+                    timeSlider.value = 0;
                     
-                    updateTimeDisplays();
-                    updateRangeVisualizer();
+                    // 시간 표시 업데이트
+                    timeDisplay.textContent = formatTime(0);
+                    
+                    // 캔버스 설정
+                    frameCanvas.width = video.videoWidth;
+                    frameCanvas.height = video.videoHeight;
+                    
+                    console.log('✅ 비디오 메타데이터 로드 완료');
                     resolve();
                 };
             });
             
-            currentTimeSlider.addEventListener('input', (e) => {
-                editVideo.currentTime = parseFloat(e.target.value);
-                updateTimeDisplays();
+            // 슬라이더 이벤트 리스너
+            timeSlider.addEventListener('input', (e) => {
+                const time = parseFloat(e.target.value);
+                video.currentTime = time;
+                timeDisplay.textContent = formatTime(time);
+                
+                // 프레임 미리보기 업데이트
+                const ctx = frameCanvas.getContext('2d');
+                ctx.drawImage(video, 0, 0, frameCanvas.width, frameCanvas.height);
             });
             
-            editVideo.addEventListener('timeupdate', () => {
-                currentTimeSlider.value = editVideo.currentTime;
-                updateTimeDisplays();
-            });
+            console.log('✅ 비디오 에디터 초기화 완료');
         }
 
         function playPauseVideo() {
