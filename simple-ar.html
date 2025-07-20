@@ -762,18 +762,20 @@
 
         .scanner-overlay-fullscreen {
             position: fixed;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
             width: 280px;
             height: 280px;
+            margin: auto;
             border: 4px solid #ff6b35;
             border-radius: 20px;
             box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.4);
             animation: scanPulse 2s infinite;
             z-index: 1502;
             pointer-events: none;
-            /* 정확한 중앙 정렬을 위한 고정 위치 */
+            /* 완전한 중앙 정렬: top, left, right, bottom 0 + margin auto */
         }
 
         /* 스캔 프레임의 코너 마커 */
@@ -2440,29 +2442,92 @@
             }
         }
 
+        function setupCameraBackgroundDirect() {
+            console.log('카메라 백그라운드 직접 설정');
+            
+            const cameraBackground = document.getElementById('cameraBackground');
+            if (!cameraBackground) {
+                console.warn('카메라 백그라운드 요소를 찾을 수 없습니다');
+                return;
+            }
+            
+            // 카메라 스트림 시작 (백그라운드용)
+            navigator.mediaDevices.getUserMedia({ 
+                video: { 
+                    facingMode: { ideal: 'environment' },
+                    width: { ideal: 1920 },
+                    height: { ideal: 1080 }
+                } 
+            })
+            .then(stream => {
+                cameraBackground.srcObject = stream;
+                cameraBackground.style.display = 'block';
+                cameraBackground.play();
+                console.log('카메라 백그라운드 설정 완료');
+            })
+            .catch(error => {
+                console.warn('카메라 백그라운드 설정 실패:', error);
+                // 카메라 실패 시 검은 배경
+                cameraBackground.style.background = '#000';
+                cameraBackground.style.display = 'block';
+            });
+        }
+
         function loadAndPlayARWithPosition(arId, framePosition) {
             console.log('위치 기반 AR 로딩:', arId, framePosition);
             
-            const arData = JSON.parse(localStorage.getItem(`arData_${arId}`));
-            if (!arData) {
-                console.error('AR 데이터를 찾을 수 없습니다:', arId);
-                alert('AR 데이터를 찾을 수 없습니다.');
-                return;
-            }
+            try {
+                const arData = JSON.parse(localStorage.getItem(`arData_${arId}`));
+                if (!arData) {
+                    console.error('AR 데이터를 찾을 수 없습니다:', arId);
+                    alert('AR 데이터를 찾을 수 없습니다.');
+                    return;
+                }
 
-            // AR 뷰어 표시
-            showARViewer();
-            
-            // 카메라 백그라운드 설정
-            setupCameraBackground();
-            
-            // 위치 정보가 있는 경우 정확한 위치에 오버레이
-            if (framePosition && framePosition.centerX !== undefined) {
-                console.log('감지된 위치에 AR 오버레이 설정:', framePosition);
-                loadVideoOverlayAtPosition(arData, framePosition);
-            } else {
-                console.log('기본 중앙 위치에 AR 오버레이 설정');
-                loadVideoOverlay(arData);
+                // AR 뷰어 표시 (showARViewer 대신 직접 구현)
+                const arViewer = document.getElementById('arViewer');
+                if (arViewer) {
+                    arViewer.style.display = 'block';
+                    arViewer.classList.add('active');
+                }
+                
+                // 페이지 스크롤 방지
+                document.body.style.overflow = 'hidden';
+                
+                // 카메라 백그라운드 설정 (직접 구현)
+                setupCameraBackgroundDirect();
+                
+                // 위치 정보가 있는 경우 정확한 위치에 오버레이
+                if (framePosition && framePosition.centerX !== undefined) {
+                    console.log('감지된 위치에 AR 오버레이 설정:', framePosition);
+                    setTimeout(() => {
+                        loadVideoOverlayAtPosition(arData, framePosition);
+                    }, 300); // AR 뷰어 표시 후 오버레이 로딩
+                } else {
+                    console.log('기본 중앙 위치에 AR 오버레이 설정');
+                    setTimeout(() => {
+                        loadVideoOverlay(arData);
+                    }, 300);
+                }
+                
+            } catch (error) {
+                console.error('AR 로딩 중 오류:', error);
+                // 오류 발생 시 스캔 모드로 돌아가지 않고 에러 표시
+                const arViewer = document.getElementById('arViewer');
+                if (arViewer) {
+                    arViewer.innerHTML = `
+                        <div style="position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); 
+                                    background: rgba(0,0,0,0.8); color: white; padding: 20px; border-radius: 10px; 
+                                    text-align: center; z-index: 2000;">
+                            <h3>❌ AR 로딩 실패</h3>
+                            <p>다시 시도해주세요.</p>
+                            <button onclick="closeARViewer()" style="background: #ff6b35; color: white; border: none; 
+                                    padding: 10px 20px; border-radius: 5px; cursor: pointer; margin-top: 10px;">
+                                돌아가기
+                            </button>
+                        </div>
+                    `;
+                }
             }
         }
 
@@ -3422,9 +3487,11 @@
                 window.currentTrackingAnimation = null;
             }
             
-            // 스캔 화면 리셋
-            document.getElementById('scannerContainer').style.display = 'none';
-            document.getElementById('startScanBtn').style.display = 'block';
+            // 페이지 스크롤 해제
+            document.body.style.overflow = '';
+            
+            // 메인 화면으로 돌아가기 (스캔 모드가 아닌 생성 모드로)
+            switchMode('create');
             
             // A-Frame AR 비디오 정리 (사용하지 않지만 정리)
             const arVideo = document.getElementById('ar-video');
