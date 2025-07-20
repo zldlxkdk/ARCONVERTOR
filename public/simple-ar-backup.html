@@ -2008,13 +2008,6 @@
                     모바일 브라우저에서 카메라 권한을 허용해주세요<br>
                     <span style="opacity: 0.7;">권한 요청 팝업이 나타날 수 있습니다</span>
                 `;
-                
-                // 모바일에서 즉시 카메라 접근 시도 (사용자 클릭 이벤트 내에서)
-                setTimeout(() => {
-                    console.log('📱 모바일에서 즉시 카메라 접근 시도');
-                    attemptMobileCameraAccess();
-                }, 100);
-                return; // 여기서 함수 종료
             } else {
                 scanStatusFullscreen.textContent = '카메라 권한을 요청하고 있습니다...';
             }
