@@ -181,6 +181,13 @@
             box-shadow: none;
         }
 
+        .btn-small {
+            padding: 8px 16px;
+            font-size: 12px;
+            width: auto;
+            margin: 5px;
+        }
+
         .progress {
             background: rgba(255, 255, 255, 0.2);
             border-radius: 10px;
@@ -395,6 +402,115 @@
             margin: 10px 0;
             border: 2px solid rgba(255, 255, 255, 0.3);
         }
+
+        .video-editor {
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 10px;
+            padding: 15px;
+            margin: 15px 0;
+        }
+
+        .video-controls {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin: 10px 0;
+        }
+
+        .time-slider {
+            flex: 1;
+            height: 6px;
+            border-radius: 3px;
+            background: rgba(255, 255, 255, 0.3);
+            outline: none;
+            cursor: pointer;
+        }
+
+        .time-slider::-webkit-slider-thumb {
+            appearance: none;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: #ff6b35;
+            cursor: pointer;
+        }
+
+        .time-slider::-moz-range-thumb {
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: #ff6b35;
+            cursor: pointer;
+            border: none;
+        }
+
+        .time-display {
+            font-size: 11px;
+            opacity: 0.8;
+            min-width: 60px;
+            text-align: center;
+        }
+
+        .trim-controls {
+            display: flex;
+            gap: 10px;
+            margin-top: 10px;
+        }
+
+        .trim-section {
+            flex: 1;
+            background: rgba(255, 255, 255, 0.1);
+            padding: 10px;
+            border-radius: 8px;
+            text-align: center;
+        }
+
+        .trim-label {
+            font-size: 11px;
+            opacity: 0.8;
+            margin-bottom: 5px;
+        }
+
+        .trim-time {
+            font-size: 13px;
+            font-weight: 600;
+            color: #ff6b35;
+        }
+
+        .range-visualizer {
+            height: 8px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 4px;
+            margin: 10px 0;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .range-selected {
+            height: 100%;
+            background: linear-gradient(90deg, #ff6b35, #f7931e);
+            border-radius: 4px;
+            transition: all 0.3s ease;
+        }
+
+        .duration-warning {
+            background: rgba(255, 193, 7, 0.1);
+            border: 1px solid rgba(255, 193, 7, 0.3);
+            border-radius: 8px;
+            padding: 10px;
+            margin: 10px 0;
+            font-size: 12px;
+            text-align: center;
+        }
+
+        .trim-preview {
+            width: 100%;
+            height: 120px;
+            object-fit: cover;
+            border-radius: 8px;
+            margin: 10px 0;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+        }
     </style>
 </head>
 <body>
@@ -420,11 +536,49 @@
                     <div class="upload-icon">🎬</div>
                     <div class="upload-text">AR로 재생할 비디오를 업로드하세요</div>
                     <div style="font-size: 12px; opacity: 0.6; margin-top: 5px;">
-                        MP4, WebM 지원 (최대 50MB)
+                        MP4, WebM 지원 (모든 크기)
                     </div>
                 </div>
                 <input type="file" id="videoInput" class="file-input" accept="video/*" />
                 <div id="videoPreview"></div>
+                <div id="videoEditor" class="video-editor" style="display: none;">
+                    <div style="font-weight: 600; margin-bottom: 10px; color: #ff6b35;">
+                        ✂️ 비디오 편집 (최대 15초)
+                    </div>
+                    
+                    <video id="editVideo" class="trim-preview" muted></video>
+                    
+                    <div class="video-controls">
+                        <button class="btn btn-small" onclick="playPauseVideo()">▶️</button>
+                        <input type="range" id="currentTimeSlider" class="time-slider" min="0" max="100" value="0">
+                        <div class="time-display" id="currentTimeDisplay">0:00</div>
+                    </div>
+                    
+                    <div class="trim-controls">
+                        <div class="trim-section">
+                            <div class="trim-label">시작 시간</div>
+                            <div class="trim-time" id="startTimeDisplay">0:00</div>
+                            <button class="btn btn-small" onclick="setStartTime()">설정</button>
+                        </div>
+                        <div class="trim-section">
+                            <div class="trim-label">종료 시간</div>
+                            <div class="trim-time" id="endTimeDisplay">0:15</div>
+                            <button class="btn btn-small" onclick="setEndTime()">설정</button>
+                        </div>
+                    </div>
+                    
+                    <div class="range-visualizer">
+                        <div class="range-selected" id="rangeSelected"></div>
+                    </div>
+                    
+                    <div id="durationInfo" class="duration-warning">
+                        선택된 구간: <span id="selectedDuration">15초</span> (최대 15초)
+                    </div>
+                    
+                    <button class="btn" onclick="processVideo()" id="processBtn">
+                        ✂️ 선택 구간 처리하기
+                    </button>
+                </div>
                 <div id="frameExtractionInfo"></div>
             </div>
 
@@ -529,10 +683,15 @@
     <script>
         let currentMode = 'create';
         let uploadedVideo = null;
+        let processedVideo = null;
         let extractedFrame = null;
         let arTargetData = null;
         let userInteracted = false;
-        let arSystem = null;
+        let videoElement = null;
+        let isPlaying = false;
+        let startTime = 0;
+        let endTime = 15;
+        let videoDuration = 0;
 
         // 모드 전환
         function switchMode(mode) {
@@ -582,11 +741,6 @@
         }
 
         async function handleVideoFile(file) {
-            if (file.size > 50 * 1024 * 1024) {
-                alert('비디오 파일이 너무 큽니다. 50MB 이하로 업로드해주세요.');
-                return;
-            }
-
             uploadedVideo = file;
             
             const reader = new FileReader();
@@ -601,55 +755,218 @@
                 
                 document.getElementById('step1').classList.add('active');
                 
-                // 첫 번째 프레임 추출
-                await extractFirstFrame(e.target.result);
+                // 비디오 편집기 초기화
+                await initVideoEditor(e.target.result);
             };
             reader.readAsDataURL(file);
         }
 
-        async function extractFirstFrame(videoSrc) {
-            const infoDiv = document.getElementById('frameExtractionInfo');
-            infoDiv.innerHTML = `
+        async function initVideoEditor(videoSrc) {
+            const videoEditor = document.getElementById('videoEditor');
+            const editVideo = document.getElementById('editVideo');
+            const currentTimeSlider = document.getElementById('currentTimeSlider');
+            
+            videoEditor.style.display = 'block';
+            editVideo.src = videoSrc;
+            videoElement = editVideo;
+            
+            await new Promise((resolve) => {
+                editVideo.onloadedmetadata = () => {
+                    videoDuration = editVideo.duration;
+                    endTime = Math.min(15, videoDuration);
+                    
+                    // 슬라이더 업데이트
+                    currentTimeSlider.max = videoDuration;
+                    
+                    updateTimeDisplays();
+                    updateRangeVisualizer();
+                    resolve();
+                };
+            });
+            
+            // 이벤트 리스너 추가
+            currentTimeSlider.addEventListener('input', (e) => {
+                editVideo.currentTime = parseFloat(e.target.value);
+                updateTimeDisplays();
+            });
+            
+            editVideo.addEventListener('timeupdate', () => {
+                currentTimeSlider.value = editVideo.currentTime;
+                updateTimeDisplays();
+            });
+        }
+
+        function playPauseVideo() {
+            if (!videoElement) return;
+            
+            if (isPlaying) {
+                videoElement.pause();
+                document.querySelector('.video-controls button').textContent = '▶️';
+            } else {
+                videoElement.play();
+                document.querySelector('.video-controls button').textContent = '⏸️';
+            }
+            isPlaying = !isPlaying;
+        }
+
+        function setStartTime() {
+            if (!videoElement) return;
+            
+            startTime = videoElement.currentTime;
+            
+            // 종료 시간이 시작 시간보다 빠르면 조정
+            if (endTime <= startTime) {
+                endTime = Math.min(startTime + 15, videoDuration);
+            }
+            
+            // 15초 제한 확인
+            if (endTime - startTime > 15) {
+                endTime = startTime + 15;
+                if (endTime > videoDuration) {
+                    endTime = videoDuration;
+                    startTime = Math.max(0, endTime - 15);
+                }
+            }
+            
+            updateTimeDisplays();
+            updateRangeVisualizer();
+        }
+
+        function setEndTime() {
+            if (!videoElement) return;
+            
+            endTime = videoElement.currentTime;
+            
+            // 시작 시간이 종료 시간보다 늦으면 조정
+            if (startTime >= endTime) {
+                startTime = Math.max(0, endTime - 15);
+            }
+            
+            // 15초 제한 확인
+            if (endTime - startTime > 15) {
+                startTime = endTime - 15;
+                if (startTime < 0) {
+                    startTime = 0;
+                    endTime = Math.min(15, videoDuration);
+                }
+            }
+            
+            updateTimeDisplays();
+            updateRangeVisualizer();
+        }
+
+        function updateTimeDisplays() {
+            if (!videoElement) return;
+            
+            const currentTime = videoElement.currentTime;
+            const selectedDuration = endTime - startTime;
+            
+            document.getElementById('currentTimeDisplay').textContent = formatTime(currentTime);
+            document.getElementById('startTimeDisplay').textContent = formatTime(startTime);
+            document.getElementById('endTimeDisplay').textContent = formatTime(endTime);
+            document.getElementById('selectedDuration').textContent = formatTime(selectedDuration);
+            
+            // 경고 표시
+            const durationInfo = document.getElementById('durationInfo');
+            if (selectedDuration > 15) {
+                durationInfo.style.background = 'rgba(244, 67, 54, 0.1)';
+                durationInfo.style.borderColor = 'rgba(244, 67, 54, 0.3)';
+            } else {
+                durationInfo.style.background = 'rgba(255, 193, 7, 0.1)';
+                durationInfo.style.borderColor = 'rgba(255, 193, 7, 0.3)';
+            }
+        }
+
+        function updateRangeVisualizer() {
+            const rangeSelected = document.getElementById('rangeSelected');
+            const startPercent = (startTime / videoDuration) * 100;
+            const widthPercent = ((endTime - startTime) / videoDuration) * 100;
+            
+            rangeSelected.style.left = startPercent + '%';
+            rangeSelected.style.width = widthPercent + '%';
+        }
+
+        function formatTime(seconds) {
+            const minutes = Math.floor(seconds / 60);
+            const secs = Math.floor(seconds % 60);
+            return `${minutes}:${secs.toString().padStart(2, '0')}`;
+        }
+
+        async function processVideo() {
+            const progressDiv = document.getElementById('frameExtractionInfo');
+            progressDiv.innerHTML = `
                 <div class="frame-extraction-info">
                     <div class="spinner"></div>
-                    비디오에서 첫 번째 프레임을 추출하고 있습니다...
+                    선택된 구간 (${formatTime(startTime)} - ${formatTime(endTime)})을 처리하고 있습니다...
                 </div>
             `;
-
+            
             try {
-                const video = document.createElement('video');
-                video.src = videoSrc;
-                video.crossOrigin = 'anonymous';
-                video.muted = true;
-
-                await new Promise((resolve, reject) => {
-                    video.onloadeddata = resolve;
-                    video.onerror = reject;
-                });
-
-                video.currentTime = 0.1; // 첫 번째 프레임
-
-                await new Promise((resolve) => {
-                    video.onseeked = resolve;
-                });
-
-                // 캔버스에 프레임 그리기
+                // Canvas를 사용해 비디오 자르기
                 const canvas = document.createElement('canvas');
-                canvas.width = 400;
-                canvas.height = Math.round((400 * video.videoHeight) / video.videoWidth);
-                
                 const ctx = canvas.getContext('2d');
-                ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
                 
-                // 이미지 데이터 추출
-                extractedFrame = canvas.toDataURL('image/png');
+                // 해상도 조정 (품질과 용량의 균형)
+                canvas.width = 640;
+                canvas.height = Math.round((640 * videoElement.videoHeight) / videoElement.videoWidth);
                 
-                infoDiv.innerHTML = `
+                // MediaRecorder로 새 비디오 생성
+                const stream = canvas.captureStream(30); // 30fps
+                const chunks = [];
+                
+                const mediaRecorder = new MediaRecorder(stream, {
+                    mimeType: 'video/webm;codecs=vp9',
+                    videoBitsPerSecond: 1000000 // 1Mbps로 제한
+                });
+                
+                mediaRecorder.ondataavailable = (e) => chunks.push(e.data);
+                
+                const recordingPromise = new Promise((resolve) => {
+                    mediaRecorder.onstop = () => {
+                        const blob = new Blob(chunks, { type: 'video/webm' });
+                        resolve(blob);
+                    };
+                });
+                
+                // 녹화 시작
+                mediaRecorder.start();
+                
+                // 비디오 프레임 그리기
+                let currentRecordTime = 0;
+                const frameInterval = 1000 / 30; // 30fps
+                
+                const drawFrame = () => {
+                    const videoTime = startTime + currentRecordTime;
+                    
+                    if (videoTime >= endTime) {
+                        mediaRecorder.stop();
+                        return;
+                    }
+                    
+                    videoElement.currentTime = videoTime;
+                    ctx.drawImage(videoElement, 0, 0, canvas.width, canvas.height);
+                    
+                    currentRecordTime += frameInterval / 1000;
+                    setTimeout(drawFrame, frameInterval);
+                };
+                
+                // 첫 번째 프레임부터 시작
+                videoElement.currentTime = startTime;
+                await new Promise(resolve => videoElement.onseeked = resolve);
+                drawFrame();
+                
+                // 처리된 비디오 생성
+                processedVideo = await recordingPromise;
+                
+                // 첫 번째 프레임 추출
+                await extractFirstFrame();
+                
+                progressDiv.innerHTML = `
                     <div class="frame-extraction-info">
                         <div class="check-icon">✅</div>
-                        <div style="margin: 10px 0; font-weight: 600;">첫 번째 프레임 추출 완료!</div>
+                        <div style="margin: 10px 0; font-weight: 600;">비디오 처리 완료!</div>
                         <div style="font-size: 12px; opacity: 0.9; margin-bottom: 10px;">
-                            이 이미지가 AR 타겟으로 사용됩니다
+                            ${formatTime(endTime - startTime)} 길이의 최적화된 비디오가 생성되었습니다
                         </div>
                         <img src="${extractedFrame}" class="extracted-frame" alt="추출된 프레임">
                     </div>
@@ -659,11 +976,43 @@
                 document.getElementById('step2').classList.add('active');
                 
             } catch (error) {
-                infoDiv.innerHTML = `
+                progressDiv.innerHTML = `
                     <div class="frame-extraction-info" style="background: rgba(255,0,0,0.1); border-color: rgba(255,0,0,0.3);">
-                        ❌ 프레임 추출 실패: ${error.message}
+                        ❌ 비디오 처리 실패: ${error.message}
                     </div>
                 `;
+            }
+        }
+
+        async function extractFirstFrame() {
+            try {
+                // 처리된 비디오의 첫 번째 프레임 추출
+                const video = document.createElement('video');
+                video.src = URL.createObjectURL(processedVideo);
+                video.muted = true;
+
+                await new Promise((resolve, reject) => {
+                    video.onloadeddata = resolve;
+                    video.onerror = reject;
+                });
+
+                video.currentTime = 0.1;
+
+                await new Promise((resolve) => {
+                    video.onseeked = resolve;
+                });
+
+                const canvas = document.createElement('canvas');
+                canvas.width = 400;
+                canvas.height = Math.round((400 * video.videoHeight) / video.videoWidth);
+                
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+                
+                extractedFrame = canvas.toDataURL('image/png');
+                
+            } catch (error) {
+                throw new Error('프레임 추출 실패: ' + error.message);
             }
         }
 
@@ -679,8 +1028,8 @@
             `;
 
             try {
-                // 비디오를 Base64로 변환
-                const videoBase64 = await fileToBase64(uploadedVideo);
+                // 처리된 비디오를 Base64로 변환
+                const videoBase64 = await blobToBase64(processedVideo);
                 
                 // AR 데이터 생성
                 const arId = 'ar_' + Date.now();
@@ -689,6 +1038,7 @@
                     videoData: videoBase64,
                     targetImage: extractedFrame,
                     fileName: uploadedVideo.name,
+                    duration: endTime - startTime,
                     createdAt: new Date().toISOString(),
                     type: 'ar_image_video'
                 };
@@ -706,7 +1056,8 @@
                             <div style="color: #333; font-weight: 600; margin-bottom: 10px;">AR 타겟 이미지</div>
                             <img src="${extractedFrame}" class="target-image" alt="AR 타겟 이미지">
                             <div style="color: #666; font-size: 12px; margin-top: 10px;">
-                                ID: ${arId}
+                                ID: ${arId}<br>
+                                길이: ${formatTime(arTargetData.duration)}
                             </div>
                         </div>
                         
@@ -736,12 +1087,12 @@
             }
         }
 
-        function fileToBase64(file) {
+        function blobToBase64(blob) {
             return new Promise((resolve, reject) => {
                 const reader = new FileReader();
                 reader.onload = () => resolve(reader.result);
                 reader.onerror = reject;
-                reader.readAsDataURL(file);
+                reader.readAsDataURL(blob);
             });
         }
 
@@ -781,7 +1132,6 @@
                 btn.style.display = 'none';
                 container.style.display = 'block';
                 
-                // 카메라 스트림 시작
                 const stream = await navigator.mediaDevices.getUserMedia({ 
                     video: { 
                         facingMode: 'environment',
@@ -791,7 +1141,6 @@
                 });
                 video.srcObject = stream;
                 
-                // 이미지 감지 시뮬레이션 (실제로는 컴퓨터 비전 라이브러리 사용)
                 setTimeout(() => {
                     simulateImageDetection();
                 }, 3000);
@@ -804,14 +1153,12 @@
         }
 
         function simulateImageDetection() {
-            // 최근 생성된 AR 데이터 로드
             const arKeys = Object.keys(localStorage).filter(key => key.startsWith('arData_'));
             if (arKeys.length === 0) {
                 alert('스캔할 AR 이미지가 없습니다. 먼저 AR 이미지를 생성해주세요.');
                 return;
             }
             
-            // 가장 최근 AR 데이터 사용
             const latestKey = arKeys[arKeys.length - 1];
             const arId = latestKey.replace('arData_', '');
             
@@ -827,31 +1174,25 @@
             
             const arData = JSON.parse(arDataJson);
             
-            // 스캐너 중지
             const video = document.getElementById('scannerVideo');
             if (video.srcObject) {
                 video.srcObject.getTracks().forEach(track => track.stop());
             }
             
-            // AR 뷰어 표시
             document.getElementById('arViewer').style.display = 'block';
             document.getElementById('arStatus').textContent = 'AR 시스템 초기화 중...';
             
-            // AR 타겟 이미지 설정
             const targetImage = document.getElementById('ar-target-image');
             targetImage.src = arData.targetImage;
             
-            // 비디오 설정
             const arVideo = document.getElementById('ar-video');
             arVideo.src = arData.videoData;
             
-            // 사용자 상호작용 대기
             if (!userInteracted) {
                 document.addEventListener('click', enableAudio, { once: true });
                 document.addEventListener('touchstart', enableAudio, { once: true });
             }
             
-            // mindAR 시스템 초기화
             setTimeout(async () => {
                 await initializeMindAR(arData.targetImage);
             }, 1000);
@@ -860,16 +1201,8 @@
         async function initializeMindAR(targetImageSrc) {
             try {
                 document.getElementById('arStatus').textContent = 'AR 타겟 생성 중...';
-                
-                // mindAR용 타겟 생성 (간단한 시뮬레이션)
-                // 실제로는 mindAR 컴파일러가 필요하지만, 여기서는 직접 이미지 사용
-                
-                const scene = document.getElementById('ar-scene');
-                
-                // mindAR 초기화 (시뮬레이션)
                 document.getElementById('arStatus').textContent = 'AR 준비 완료 - 이미지를 비춰주세요';
                 
-                // 3초 후 자동으로 타겟 감지 시뮬레이션
                 setTimeout(() => {
                     simulateTargetDetection();
                 }, 3000);
@@ -882,7 +1215,6 @@
         function simulateTargetDetection() {
             document.getElementById('arStatus').textContent = '🎯 이미지 감지됨! 비디오 재생 중';
             
-            // AR 비디오 표시 및 재생
             const arVideo = document.getElementById('ar-video');
             const arVideoElement = document.querySelector('a-video');
             const arOverlay = document.getElementById('ar-overlay');
@@ -909,24 +1241,20 @@
         function closeARViewer() {
             document.getElementById('arViewer').style.display = 'none';
             
-            // 카메라 스트림 중지
             const video = document.getElementById('scannerVideo');
             if (video.srcObject) {
                 video.srcObject.getTracks().forEach(track => track.stop());
             }
             
-            // 스캔 UI 초기화
             document.getElementById('scannerContainer').style.display = 'none';
             document.getElementById('startScanBtn').style.display = 'block';
             
-            // 비디오 정지
             const arVideo = document.getElementById('ar-video');
             if (arVideo) {
                 arVideo.pause();
                 arVideo.currentTime = 0;
             }
             
-            // AR 요소 숨김
             document.querySelector('a-video').setAttribute('visible', false);
             document.getElementById('ar-overlay').setAttribute('visible', false);
         }
