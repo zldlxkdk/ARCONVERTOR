@@ -3807,62 +3807,85 @@
             // 비디오 소스 설정
             if (arData.videoData) {
                 console.log('🎬 비디오 소스 설정 중...');
-                scannerOverlayVideo.src = arData.videoData;
                 
-                // 비디오 로드 시작 이벤트
-                scannerOverlayVideo.onloadstart = () => {
-                    console.log('🎬 스캔 비디오 로드 시작');
-                    scannerArStatus.textContent = '🎬 비디오 로딩 중...';
-                };
-                
-                // 비디오 메타데이터 로드 완료 이벤트
-                scannerOverlayVideo.onloadedmetadata = () => {
-                    console.log('🎬 스캔 비디오 메타데이터 로드 완료');
-                    scannerArStatus.textContent = '🎬 비디오 준비 중...';
-                };
-                
-                // 비디오 데이터 로드 완료 이벤트
-                scannerOverlayVideo.onloadeddata = () => {
-                    console.log('🎬 스캔 비디오 데이터 로드 완료');
-                    scannerArStatus.textContent = '🎬 AR 영상 재생 중';
-                    
-                    // 비디오 재생 시도
-                    const playPromise = scannerOverlayVideo.play();
-                    if (playPromise !== undefined) {
-                        playPromise.then(() => {
-                            console.log('✅ 스캔 비디오 재생 시작');
-                            scannerArStatus.textContent = '🎬 AR 영상 재생 중';
-                        }).catch(error => {
-                            console.error('❌ 스캔 비디오 재생 실패:', error);
-                            scannerArStatus.textContent = '❌ 비디오 재생 실패 - YouTube로 전환';
-                            // YouTube 폴백
-                            setTimeout(() => {
-                                loadScannerYouTube(arData);
-                            }, 1000);
-                        });
+                // Base64 데이터를 Blob으로 변환
+                try {
+                    const base64Data = arData.videoData;
+                    const byteCharacters = atob(base64Data.split(',')[1] || base64Data);
+                    const byteNumbers = new Array(byteCharacters.length);
+                    for (let i = 0; i < byteCharacters.length; i++) {
+                        byteNumbers[i] = byteCharacters.charCodeAt(i);
                     }
-                };
-                
-                // 비디오 재생 시작 이벤트
-                scannerOverlayVideo.onplay = () => {
-                    console.log('✅ 스캔 비디오 재생 시작됨');
-                    scannerArStatus.textContent = '🎬 AR 영상 재생 중';
-                };
-                
-                // 비디오 로드 실패 시
-                scannerOverlayVideo.onerror = (e) => {
-                    console.error('❌ 스캔 비디오 로드 실패:', e);
-                    scannerArStatus.textContent = '❌ 비디오 로드 실패 - YouTube로 전환';
+                    const byteArray = new Uint8Array(byteNumbers);
+                    const blob = new Blob([byteArray], { type: 'video/mp4' });
+                    const videoUrl = URL.createObjectURL(blob);
+                    
+                    console.log('🎬 Base64를 Blob URL로 변환 완료:', videoUrl);
+                    scannerOverlayVideo.src = videoUrl;
+                    
+                    // 비디오 로드 시작 이벤트
+                    scannerOverlayVideo.onloadstart = () => {
+                        console.log('🎬 스캔 비디오 로드 시작');
+                        scannerArStatus.textContent = '🎬 비디오 로딩 중...';
+                    };
+                    
+                    // 비디오 메타데이터 로드 완료 이벤트
+                    scannerOverlayVideo.onloadedmetadata = () => {
+                        console.log('🎬 스캔 비디오 메타데이터 로드 완료');
+                        scannerArStatus.textContent = '🎬 비디오 준비 중...';
+                    };
+                    
+                    // 비디오 데이터 로드 완료 이벤트
+                    scannerOverlayVideo.onloadeddata = () => {
+                        console.log('🎬 스캔 비디오 데이터 로드 완료');
+                        scannerArStatus.textContent = '🎬 AR 영상 재생 중';
+                        
+                        // 비디오 재생 시도
+                        const playPromise = scannerOverlayVideo.play();
+                        if (playPromise !== undefined) {
+                            playPromise.then(() => {
+                                console.log('✅ 스캔 비디오 재생 시작');
+                                scannerArStatus.textContent = '🎬 AR 영상 재생 중';
+                            }).catch(error => {
+                                console.error('❌ 스캔 비디오 재생 실패:', error);
+                                scannerArStatus.textContent = '❌ 비디오 재생 실패 - YouTube로 전환';
+                                // YouTube 폴백
+                                setTimeout(() => {
+                                    loadScannerYouTube(arData);
+                                }, 1000);
+                            });
+                        }
+                    };
+                    
+                    // 비디오 재생 시작 이벤트
+                    scannerOverlayVideo.onplay = () => {
+                        console.log('✅ 스캔 비디오 재생 시작됨');
+                        scannerArStatus.textContent = '🎬 AR 영상 재생 중';
+                    };
+                    
+                    // 비디오 로드 실패 시
+                    scannerOverlayVideo.onerror = (e) => {
+                        console.error('❌ 스캔 비디오 로드 실패:', e);
+                        scannerArStatus.textContent = '❌ 비디오 로드 실패 - YouTube로 전환';
+                        // YouTube 폴백
+                        setTimeout(() => {
+                            loadScannerYouTube(arData);
+                        }, 1000);
+                    };
+                    
+                    // 비디오 로드 진행 이벤트
+                    scannerOverlayVideo.onprogress = () => {
+                        console.log('🎬 스캔 비디오 로드 진행 중...');
+                    };
+                    
+                } catch (error) {
+                    console.error('❌ Base64 비디오 변환 실패:', error);
+                    scannerArStatus.textContent = '❌ 비디오 변환 실패 - YouTube로 전환';
                     // YouTube 폴백
                     setTimeout(() => {
                         loadScannerYouTube(arData);
                     }, 1000);
-                };
-                
-                // 비디오 로드 진행 이벤트
-                scannerOverlayVideo.onprogress = () => {
-                    console.log('🎬 스캔 비디오 로드 진행 중...');
-                };
+                }
                 
             } else {
                 console.error('❌ 비디오 데이터가 없습니다');
@@ -4028,6 +4051,8 @@
             const fullscreenOverlayVideo = document.getElementById('fullscreenOverlayVideo');
             const fullscreenArStatus = document.getElementById('fullscreenArStatus');
             
+            console.log('🎬 전체 화면 비디오 로드 시작:', arData.videoData ? '비디오 데이터 있음' : '비디오 데이터 없음');
+            
             // 비디오 요소 초기화
             fullscreenOverlayVideo.pause();
             fullscreenOverlayVideo.currentTime = 0;
@@ -4039,31 +4064,99 @@
             fullscreenOverlayVideo.setAttribute('loop', 'true');
             fullscreenOverlayVideo.setAttribute('muted', 'true');
             fullscreenOverlayVideo.setAttribute('playsinline', 'true');
+            fullscreenOverlayVideo.setAttribute('controls', 'false');
             
             // 비디오 소스 설정
-            fullscreenOverlayVideo.src = arData.videoData;
-            
-            // 비디오 로드 완료 이벤트
-            fullscreenOverlayVideo.onloadeddata = () => {
-                console.log('🎬 전체 화면 비디오 데이터 로드 완료');
-                fullscreenArStatus.textContent = '🎬 AR 영상 재생 중';
+            if (arData.videoData) {
+                console.log('🎬 전체 화면 비디오 소스 설정 중...');
                 
-                // 비디오 재생 시도
-                fullscreenOverlayVideo.play().then(() => {
-                    console.log('✅ 전체 화면 비디오 재생 시작');
-                }).catch(error => {
-                    console.error('❌ 전체 화면 비디오 재생 실패:', error);
-                    fullscreenArStatus.textContent = '❌ 비디오 재생 실패';
-                });
-            };
+                // Base64 데이터를 Blob으로 변환
+                try {
+                    const base64Data = arData.videoData;
+                    const byteCharacters = atob(base64Data.split(',')[1] || base64Data);
+                    const byteNumbers = new Array(byteCharacters.length);
+                    for (let i = 0; i < byteCharacters.length; i++) {
+                        byteNumbers[i] = byteCharacters.charCodeAt(i);
+                    }
+                    const byteArray = new Uint8Array(byteNumbers);
+                    const blob = new Blob([byteArray], { type: 'video/mp4' });
+                    const videoUrl = URL.createObjectURL(blob);
+                    
+                    console.log('🎬 전체 화면 Base64를 Blob URL로 변환 완료:', videoUrl);
+                    fullscreenOverlayVideo.src = videoUrl;
             
-            // 비디오 로드 실패 시
-            fullscreenOverlayVideo.onerror = (e) => {
-                console.error('❌ 전체 화면 비디오 로드 실패:', e);
-                fullscreenArStatus.textContent = '❌ 비디오 로드 실패';
+                    // 비디오 로드 시작 이벤트
+                    fullscreenOverlayVideo.onloadstart = () => {
+                        console.log('🎬 전체 화면 비디오 로드 시작');
+                        fullscreenArStatus.textContent = '🎬 비디오 로딩 중...';
+                    };
+                    
+                    // 비디오 메타데이터 로드 완료 이벤트
+                    fullscreenOverlayVideo.onloadedmetadata = () => {
+                        console.log('🎬 전체 화면 비디오 메타데이터 로드 완료');
+                        fullscreenArStatus.textContent = '🎬 비디오 준비 중...';
+                    };
+                    
+                    // 비디오 로드 완료 이벤트
+                    fullscreenOverlayVideo.onloadeddata = () => {
+                        console.log('🎬 전체 화면 비디오 데이터 로드 완료');
+                        fullscreenArStatus.textContent = '🎬 AR 영상 재생 중';
+                        
+                        // 비디오 재생 시도
+                        const playPromise = fullscreenOverlayVideo.play();
+                        if (playPromise !== undefined) {
+                            playPromise.then(() => {
+                                console.log('✅ 전체 화면 비디오 재생 시작');
+                                fullscreenArStatus.textContent = '🎬 AR 영상 재생 중';
+                            }).catch(error => {
+                                console.error('❌ 전체 화면 비디오 재생 실패:', error);
+                                fullscreenArStatus.textContent = '❌ 비디오 재생 실패 - YouTube로 전환';
+                                // YouTube 폴백
+                                setTimeout(() => {
+                                    loadFullscreenYouTube(arData);
+                                }, 1000);
+                            });
+                        }
+                    };
+                    
+                    // 비디오 재생 시작 이벤트
+                    fullscreenOverlayVideo.onplay = () => {
+                        console.log('✅ 전체 화면 비디오 재생 시작됨');
+                        fullscreenArStatus.textContent = '🎬 AR 영상 재생 중';
+                    };
+                    
+                    // 비디오 로드 실패 시
+                    fullscreenOverlayVideo.onerror = (e) => {
+                        console.error('❌ 전체 화면 비디오 로드 실패:', e);
+                        fullscreenArStatus.textContent = '❌ 비디오 로드 실패 - YouTube로 전환';
+                        // YouTube 폴백
+                        setTimeout(() => {
+                            loadFullscreenYouTube(arData);
+                        }, 1000);
+                    };
+                    
+                    // 비디오 로드 진행 이벤트
+                    fullscreenOverlayVideo.onprogress = () => {
+                        console.log('🎬 전체 화면 비디오 로드 진행 중...');
+                    };
+                    
+                } catch (error) {
+                    console.error('❌ 전체 화면 Base64 비디오 변환 실패:', error);
+                    fullscreenArStatus.textContent = '❌ 비디오 변환 실패 - YouTube로 전환';
+                    // YouTube 폴백
+                    setTimeout(() => {
+                        loadFullscreenYouTube(arData);
+                    }, 1000);
+                }
+                
+            } else {
+                console.error('❌ 전체 화면 비디오 데이터가 없습니다');
+                fullscreenArStatus.textContent = '❌ 비디오 데이터 없음 - YouTube로 전환';
                 // YouTube 폴백
-                loadFullscreenYouTube(arData);
-            };
+                setTimeout(() => {
+                    loadFullscreenYouTube(arData);
+                }, 1000);
+            }
         }
 
         // 전체 화면 비디오 소리 토글
