@@ -64,11 +64,7 @@
             // 모바일 최적화 초기화
             initializeMobileOptimizations();
             
-            // AR Scene 초기화 지연 (필요할 때만 로드)
-            const arScene = document.getElementById('ar-scene');
-            if (arScene) {
-                arScene.style.display = 'none';
-            }
+            // AR Scene은 필요할 때만 동적으로 생성됨
             
             console.log('✅ AR 이미지 생성기 초기화 완료');
         });
@@ -89,9 +85,10 @@
                 arViewer.classList.remove('active');
             }
             
-            // AR Scene 숨기기
+            // AR Scene 제거 (카메라 접근 중단)
             if (arScene) {
-                arScene.style.display = 'none';
+                arScene.remove();
+                console.log('✅ AR Scene 제거 완료');
             }
         }
 
@@ -115,19 +112,81 @@
             }
         }
 
+        // AR Scene 동적 생성 함수
+        function createARScene() {
+            console.log('🎯 AR Scene 생성');
+            
+            const arSceneContainer = document.querySelector('.ar-scene-container');
+            if (!arSceneContainer) {
+                console.error('❌ AR Scene 컨테이너를 찾을 수 없습니다');
+                return null;
+            }
+            
+            // 기존 AR Scene 제거
+            const existingScene = document.getElementById('ar-scene');
+            if (existingScene) {
+                existingScene.remove();
+            }
+            
+            // 새로운 AR Scene 생성
+            const arScene = document.createElement('a-scene');
+            arScene.id = 'ar-scene';
+            arScene.setAttribute('mindar-image', 'imageTargetSrc: ./targets/target-image.mind;');
+            arScene.setAttribute('color-space', 'sRGB');
+            arScene.setAttribute('renderer', 'colorManagement: true, physicallyCorrectLights');
+            arScene.setAttribute('vr-mode-ui', 'enabled: false');
+            arScene.setAttribute('device-orientation-permission-ui', 'enabled: false');
+            arScene.setAttribute('embedded', '');
+            
+            // 카메라 추가
+            const camera = document.createElement('a-camera');
+            camera.setAttribute('position', '0 0 0');
+            camera.setAttribute('look-controls', 'enabled: false');
+            
+            // 에셋 추가
+            const assets = document.createElement('a-assets');
+            const video = document.createElement('video');
+            video.id = 'arVideo';
+            video.setAttribute('src', '');
+            video.setAttribute('preload', 'auto');
+            video.setAttribute('loop', '');
+            video.setAttribute('crossOrigin', 'anonymous');
+            video.setAttribute('playsinline', '');
+            video.setAttribute('webkit-playsinline', '');
+            video.setAttribute('muted', '');
+            assets.appendChild(video);
+            
+            // AR 이미지 추가
+            const arImage = document.createElement('a-image');
+            arImage.id = 'arImage';
+            arImage.setAttribute('src', '#arVideo');
+            arImage.setAttribute('position', '0 0 0');
+            arImage.setAttribute('width', '1');
+            arImage.setAttribute('height', '0.5625');
+            arImage.setAttribute('visible', 'false');
+            
+            // 요소들을 Scene에 추가
+            arScene.appendChild(camera);
+            arScene.appendChild(assets);
+            arScene.appendChild(arImage);
+            
+            // 컨테이너에 Scene 추가
+            arSceneContainer.appendChild(arScene);
+            
+            console.log('✅ AR Scene 생성 완료');
+            return arScene;
+        }
+
         // AR 뷰어 열기 함수
         function openARViewer() {
             console.log('🎯 AR 뷰어 열기');
             const arViewer = document.getElementById('arViewer');
-            const arScene = document.getElementById('ar-scene');
             
             if (arViewer) {
                 arViewer.classList.add('active');
-            }
-            
-            // AR Scene 활성화
-            if (arScene) {
-                arScene.style.display = 'block';
+                
+                // AR Scene 생성
+                createARScene();
             }
         }
 
