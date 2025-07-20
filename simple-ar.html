@@ -1730,27 +1730,30 @@
                         
                         // 고유 ID 생성 및 스테가노그래피 패턴 삽입
                         const uniqueId = generateUniqueId();
+                        console.log(`🔐 고유 ID 생성: ${uniqueId}`);
+                        
+                        // 스테가노그래피 패턴 삽입
                         insertSteganographyPattern(ctx, arSize, arSize, uniqueId);
                         
                         // 마이크로 도트 패턴 삽입
                         insertMicroDotPattern(ctx, arSize, arSize, uniqueId);
                         
-                        console.log(`🔐 스테가노그래피 패턴 삽입 완료: ${uniqueId}`);
+                        console.log(`🔐 패턴 삽입 완료 - 스테가노그래피 + 마이크로 도트`);
                         
-                        // === 특수 AR 마커 시스템 ===
+                        // 패턴 삽입 확인을 위한 디버깅 정보
+                        const testPattern = extractSteganographyPattern(ctx.getImageData(0, 0, arSize, arSize).data, arSize, arSize);
+                        console.log(`🔍 삽입된 패턴 확인: ${testPattern.length}개 패턴 포인트`);
                         
-                        // 1. 메인 테두리 (이중 테두리로 인식률 향상)
+                        // === 간단한 AR 마커 시스템 ===
+                        
+                        // 1. 간단한 테두리만 추가
                         ctx.strokeStyle = '#000000';
-                        ctx.lineWidth = 10;
-                        ctx.strokeRect(imageMargin - 10, imageMargin - 10, imageSize + 20, imageSize + 20);
+                        ctx.lineWidth = 8;
+                        ctx.strokeRect(imageMargin - 8, imageMargin - 8, imageSize + 16, imageSize + 16);
                         
-                        ctx.strokeStyle = '#ff6b35';
-                        ctx.lineWidth = 6;
-                        ctx.strokeRect(imageMargin - 20, imageMargin - 20, imageSize + 40, imageSize + 40);
-                        
-                        // 2. 정밀 추적용 코너 마커 (각기 다른 패턴)
-                        const cornerSize = 80;
-                        const cornerMargin = 20;
+                        // 2. 4개 코너에 간단한 마커만 추가
+                        const cornerSize = 40;
+                        const cornerMargin = 10;
                         const corners = [
                             [cornerMargin, cornerMargin],
                             [arSize - cornerMargin - cornerSize, cornerMargin],
@@ -1759,133 +1762,17 @@
                         ];
                         
                         corners.forEach(([x, y], index) => {
-                            // 코너 마커 배경
-                            ctx.fillStyle = '#ffffff';
+                            // 간단한 사각형 마커
+                            ctx.fillStyle = '#000000';
                             ctx.fillRect(x, y, cornerSize, cornerSize);
                             
-                            ctx.strokeStyle = '#000000';
-                            ctx.lineWidth = 4;
-                            ctx.strokeRect(x, y, cornerSize, cornerSize);
-                            
-                            ctx.fillStyle = '#000000';
-                            
-                            switch(index) {
-                                case 0: // 좌상단 - 격자 패턴
-                                    for(let i = 0; i < 3; i++) {
-                                        for(let j = 0; j < 3; j++) {
-                                            if((i + j) % 2 === 0) {
-                                                ctx.fillRect(x + 15 + i * 16, y + 15 + j * 16, 12, 12);
-                                            }
-                                        }
-                                    }
-                                    break;
-                                case 1: // 우상단 - 동심원 패턴
-                                    ctx.beginPath();
-                                    ctx.arc(x + cornerSize/2, y + cornerSize/2, 25, 0, Math.PI * 2);
-                                    ctx.fill();
-                                    ctx.fillStyle = '#ffffff';
-                                    ctx.beginPath();
-                                    ctx.arc(x + cornerSize/2, y + cornerSize/2, 15, 0, Math.PI * 2);
-                                    ctx.fill();
-                                    ctx.fillStyle = '#000000';
-                                    ctx.beginPath();
-                                    ctx.arc(x + cornerSize/2, y + cornerSize/2, 8, 0, Math.PI * 2);
-                                    ctx.fill();
-                                    break;
-                                case 2: // 좌하단 - 삼각형 패턴
-                                    ctx.beginPath();
-                                    ctx.moveTo(x + cornerSize/2, y + 15);
-                                    ctx.lineTo(x + 15, y + cornerSize - 15);
-                                    ctx.lineTo(x + cornerSize - 15, y + cornerSize - 15);
-                                    ctx.closePath();
-                                    ctx.fill();
-                                    break;
-                                case 3: // 우하단 - 십자 패턴
-                                    ctx.fillRect(x + cornerSize/2 - 8, y + 15, 16, cornerSize - 30);
-                                    ctx.fillRect(x + 15, y + cornerSize/2 - 8, cornerSize - 30, 16);
-                                    break;
-                            }
-                        });
-                        
-                        // 3. 중앙 위치 식별을 위한 특수 마커들
-                        
-                        // 상단 중앙 마커 (YouTube 아이콘)
-                        const topMarkerX = arSize / 2 - 25;
-                        const topMarkerY = 30;
-                        ctx.fillStyle = '#ff0000';
-                        ctx.fillRect(topMarkerX, topMarkerY, 50, 35);
-                        ctx.fillStyle = '#ffffff';
-                        ctx.beginPath();
-                        ctx.moveTo(topMarkerX + 15, topMarkerY + 10);
-                        ctx.lineTo(topMarkerX + 15, topMarkerY + 25);
-                        ctx.lineTo(topMarkerX + 35, topMarkerY + 17.5);
-                        ctx.closePath();
-                        ctx.fill();
-                        
-                        // 하단 중앙 마커 (재생 컨트롤)
-                        const bottomMarkerX = arSize / 2 - 30;
-                        const bottomMarkerY = arSize - 65;
-                        ctx.fillStyle = '#4CAF50';
-                        ctx.fillRect(bottomMarkerX, bottomMarkerY, 60, 35);
-                        ctx.fillStyle = '#ffffff';
-                        ctx.beginPath();
-                        ctx.moveTo(bottomMarkerX + 20, bottomMarkerY + 8);
-                        ctx.lineTo(bottomMarkerX + 20, bottomMarkerY + 27);
-                        ctx.lineTo(bottomMarkerX + 35, bottomMarkerY + 17.5);
-                        ctx.closePath();
-                        ctx.fill();
-                        ctx.fillRect(bottomMarkerX + 40, bottomMarkerY + 10, 6, 15);
-                        ctx.fillRect(bottomMarkerX + 50, bottomMarkerY + 10, 6, 15);
-                        
-                        // 4. 측면 방향 마커들
-                        
-                        // 좌측 마커 (크기 스케일)
-                        const leftMarkerX = 10;
-                        const leftMarkerY = arSize / 2 - 40;
-                        for(let i = 0; i < 5; i++) {
-                            ctx.fillStyle = i % 2 === 0 ? '#000000' : '#ffffff';
-                            ctx.fillRect(leftMarkerX, leftMarkerY + i * 16, 30, 16);
-                        }
-                        
-                        // 우측 마커 (회전 각도)
-                        const rightMarkerX = arSize - 40;
-                        const rightMarkerY = arSize / 2 - 40;
-                        ctx.fillStyle = '#000000';
-                        for(let i = 0; i < 5; i++) {
-                            const size = 10 + i * 3;
-                            ctx.fillRect(rightMarkerX + (30 - size) / 2, rightMarkerY + i * 16, size, 14);
-                        }
-                        
-                        // 5. 비디오 재생 영역 마커 (정확한 YouTube 재생 위치 정의)
-                        const videoAreaMarkers = [
-                            [imageMargin + 20, imageMargin + 20],
-                            [imageMargin + imageSize - 40, imageMargin + 20],
-                            [imageMargin + 20, imageMargin + imageSize - 40],
-                            [imageMargin + imageSize - 40, imageMargin + imageSize - 40]
-                        ];
-                        
-                        videoAreaMarkers.forEach(([x, y]) => {
-                            ctx.fillStyle = '#ff6b35';
-                            ctx.beginPath();
-                            ctx.arc(x + 10, y + 10, 8, 0, Math.PI * 2);
-                            ctx.fill();
-                            
+                            // 흰색 내부
                             ctx.fillStyle = '#ffffff';
-                            ctx.beginPath();
-                            ctx.arc(x + 10, y + 10, 4, 0, Math.PI * 2);
-                            ctx.fill();
-                        });
-                        
-                        // 6. 디지털 시그니처 (고유 식별)
-                        const signatureY = arSize - 30;
-                        const signatureStartX = 100;
-                        const barcodePattern = [3, 1, 4, 1, 5, 2, 6, 1, 3, 2, 4, 1];
-                        let currentX = signatureStartX;
-                        
-                        barcodePattern.forEach((width, index) => {
-                            ctx.fillStyle = index % 2 === 0 ? '#000000' : '#ffffff';
-                            ctx.fillRect(currentX, signatureY, width * 4, 20);
-                            currentX += width * 4;
+                            ctx.fillRect(x + 4, y + 4, cornerSize - 8, cornerSize - 8);
+                            
+                            // 중앙에 작은 검은 점
+                            ctx.fillStyle = '#000000';
+                            ctx.fillRect(x + cornerSize/2 - 4, y + cornerSize/2 - 4, 8, 8);
                         });
                         
                             // 완성된 특수 마커 이미지 반환
@@ -2457,8 +2344,8 @@
                         <span style="font-size: 10px; opacity: 0.5;">검색된 이미지: ${arKeys.length}개</span>
                     `;
 
-                    // 임계값 적용 (더 낮은 임계값으로 감지 민감도 향상)
-                    const threshold = bestMatch && bestMatch.hasSpecialMarkers ? 0.4 : 0.3;
+                    // 임계값 적용 (매우 낮은 임계값으로 감지 민감도 대폭 향상)
+                    const threshold = bestMatch && bestMatch.hasSpecialMarkers ? 0.2 : 0.15;
                     
                     if (bestMatch && bestScore > threshold) {
                         clearInterval(detectInterval);
@@ -2725,7 +2612,7 @@
         function compareImages(img1DataURL, img2DataURL) {
             return new Promise((resolve) => {
                 try {
-                    console.log('🔍 스테가노그래피 패턴 분석 시작');
+                    console.log('🔍 간단한 이미지 비교 시작');
                     
                     if (!img1DataURL || !img2DataURL) {
                         console.warn('이미지 데이터가 없습니다');
@@ -2741,54 +2628,66 @@
                     const img1 = new Image();
                     const img2 = new Image();
                     
-                    // 캔버스 크기 설정 (스테가노그래피 분석을 위해 충분한 크기)
-                    canvas1.width = canvas2.width = 400;
-                    canvas1.height = canvas2.height = 400;
+                    // 캔버스 크기 설정 (간단한 비교를 위해 작은 크기)
+                    canvas1.width = canvas2.width = 200;
+                    canvas1.height = canvas2.height = 200;
                     
                     let img1Loaded = false;
                     let img2Loaded = false;
                     
                     img1.onload = () => {
-                        ctx1.drawImage(img1, 0, 0, 400, 400);
+                        ctx1.drawImage(img1, 0, 0, 200, 200);
                         img1Loaded = true;
-                        if (img2Loaded) performSteganographyAnalysis();
+                        if (img2Loaded) performSimpleComparison();
                     };
                     
                     img2.onload = () => {
-                        ctx2.drawImage(img2, 0, 0, 400, 400);
+                        ctx2.drawImage(img2, 0, 0, 200, 200);
                         img2Loaded = true;
-                        if (img1Loaded) performSteganographyAnalysis();
+                        if (img1Loaded) performSimpleComparison();
                     };
                     
-                    function performSteganographyAnalysis() {
+                    function performSimpleComparison() {
                         try {
-                            const data1 = ctx1.getImageData(0, 0, 400, 400).data;
-                            const data2 = ctx2.getImageData(0, 0, 400, 400).data;
+                            const data1 = ctx1.getImageData(0, 0, 200, 200).data;
+                            const data2 = ctx2.getImageData(0, 0, 200, 200).data;
                             
-                            // 스테가노그래피 패턴 분석
-                            const pattern1 = extractSteganographyPattern(data1, 400, 400);
-                            const pattern2 = extractSteganographyPattern(data2, 400, 400);
+                            let matchingPixels = 0;
+                            let totalPixels = 0;
                             
-                            // 패턴 유사도 계산
-                            const patternSimilarity = compareSteganographyPatterns(pattern1, pattern2);
+                            // 간단한 픽셀 비교 (성능을 위해 샘플링)
+                            for (let i = 0; i < data1.length; i += 20) { // 5픽셀씩 건너뛰기
+                                const r1 = data1[i];
+                                const g1 = data1[i + 1];
+                                const b1 = data1[i + 2];
+                                
+                                const r2 = data2[i];
+                                const g2 = data2[i + 1];
+                                const b2 = data2[i + 2];
+                                
+                                // 색상 차이 계산 (더 관대한 임계값)
+                                const colorDiff = Math.sqrt(
+                                    Math.pow(r1 - r2, 2) + 
+                                    Math.pow(g1 - g2, 2) + 
+                                    Math.pow(b1 - b2, 2)
+                                );
+                                
+                                // 임계값 내에 있으면 매칭으로 간주 (더 관대한 임계값)
+                                if (colorDiff < 150) { // 색상 차이가 150 이하
+                                    matchingPixels++;
+                                }
+                                
+                                totalPixels++;
+                            }
                             
-                            // 마이크로 도트 패턴 분석
-                            const dotPattern1 = extractMicroDotPattern(data1, 400, 400);
-                            const dotPattern2 = extractMicroDotPattern(data2, 400, 400);
+                            const similarity = totalPixels > 0 ? matchingPixels / totalPixels : 0;
                             
-                            // 도트 패턴 유사도 계산
-                            const dotSimilarity = compareMicroDotPatterns(dotPattern1, dotPattern2);
+                            console.log(`🔍 간단한 이미지 비교 결과: ${Math.round(similarity * 100)}% (${matchingPixels}/${totalPixels} 픽셀)`);
                             
-                            // 전체 유사도 계산 (스테가노그래피 70%, 마이크로 도트 30%)
-                            const totalSimilarity = (patternSimilarity * 0.7) + (dotSimilarity * 0.3);
-                            
-                            console.log(`🔍 스테가노그래피 분석 결과: ${Math.round(totalSimilarity * 100)}%`);
-                            console.log(`📊 패턴 유사도: ${Math.round(patternSimilarity * 100)}%, 도트 유사도: ${Math.round(dotSimilarity * 100)}%`);
-                            
-                            resolve(totalSimilarity);
+                            resolve(similarity);
                             
                         } catch (error) {
-                            console.error('스테가노그래피 분석 오류:', error);
+                            console.error('간단한 이미지 비교 오류:', error);
                             resolve(0);
                         }
                     }
@@ -2807,7 +2706,7 @@
                     img2.src = img2DataURL;
                     
                 } catch (error) {
-                    console.error('스테가노그래피 분석 함수 오류:', error);
+                    console.error('간단한 이미지 비교 함수 오류:', error);
                     resolve(0);
                 }
             });
