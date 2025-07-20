@@ -1008,20 +1008,7 @@
                     </ul>
                 </div>
 
-                <div class="fallback-info">
-                    <div style="font-weight: 600; margin-bottom: 10px;">🎬 폴백 영상</div>
-                    <div style="font-size: 12px; opacity: 0.9; margin-bottom: 10px;">
-                        비디오 로드에 실패하면 아래 유튜브 영상이 재생됩니다
-                    </div>
-                    <iframe 
-                        class="youtube-embed"
-                        src="https://www.youtube.com/embed/MX_UceuxveA?autoplay=0&mute=1"
-                        title="Fallback YouTube Video"
-                        frameborder="0"
-                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                        allowfullscreen>
-                    </iframe>
-                </div>
+
 
                 <div class="scanner-container" id="scannerContainer" style="display: none;">
                     <video id="scannerVideo" class="scanner-video" autoplay muted playsinline></video>
@@ -1077,20 +1064,7 @@
             </div>
         </div>
 
-        <!-- 유튜브 폴백 오버레이 -->
-        <div class="youtube-overlay" id="youtubeOverlay">
-            <div class="youtube-content">
-                <div class="youtube-header">📺 AR 폴백 영상</div>
-                <iframe id="youtubeIframe" 
-                        class="youtube-iframe"
-                        src="" 
-                        frameborder="0" 
-                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
-                        allowfullscreen>
-                </iframe>
-                <div class="youtube-info">원본 비디오 재생 실패로 대체 영상을 재생합니다</div>
-            </div>
-        </div>
+
 
         <!-- 카메라 미리보기 -->
         <div class="camera-preview" id="cameraPreview">
@@ -4565,6 +4539,9 @@
                 const arSceneContainer = document.getElementById('arSceneContainer');
                 arSceneContainer.style.display = 'block';
                 
+                // 카메라 스트림 시작
+                await startCameraStream();
+                
                 // mindAR 타겟 파일 생성
                 const mindFile = await createMindARTargetFile(arData.targetImage);
                 
@@ -4581,19 +4558,19 @@
                     showStats: false
                 });
                 
-                // mindAR 시스템 시작
-                const arSystem = scene.systems['mindar-image'];
-                if (arSystem) {
-                    arSystem.start();
-                    console.log('✅ mindAR 시스템 시작됨');
-                }
-                
                 // AR 타겟 이미지 설정
                 const targetImage = document.querySelector('#ar-target-image');
                 targetImage.src = arData.targetImage;
                 
                 // mindAR 이벤트 리스너 설정
                 setupMindAREvents(arData);
+                
+                // mindAR 시스템 시작
+                const arSystem = scene.systems['mindar-image'];
+                if (arSystem) {
+                    arSystem.start();
+                    console.log('✅ mindAR 시스템 시작됨');
+                }
                 
                 document.getElementById('arStatus').textContent = '📷 카메라로 생성된 AR 이미지를 비춰주세요';
                 
@@ -4602,10 +4579,35 @@
             } catch (error) {
                 console.error('❌ mindAR 초기화 실패:', error);
                 document.getElementById('arStatus').textContent = '❌ AR 시스템 오류: ' + error.message;
+            }
+        }
+        
+        async function startCameraStream() {
+            try {
+                console.log('📷 카메라 스트림 시작 중...');
                 
-                // 폴백: 기존 시스템 사용
-                console.log('🔄 폴백 시스템으로 전환');
-                setupFallbackARSystem(arData);
+                const stream = await navigator.mediaDevices.getUserMedia({
+                    video: {
+                        facingMode: 'environment', // 후면 카메라 우선
+                        width: { ideal: 1280 },
+                        height: { ideal: 720 }
+                    }
+                });
+                
+                // 카메라 스트림을 A-Frame 씬에 연결
+                const scene = document.querySelector('#ar-scene');
+                const camera = scene.querySelector('[camera]');
+                
+                if (camera && camera.components.camera) {
+                    camera.components.camera.camera = stream;
+                    console.log('✅ 카메라 스트림 연결 완료');
+                }
+                
+                return stream;
+                
+            } catch (error) {
+                console.error('❌ 카메라 스트림 시작 실패:', error);
+                throw error;
             }
         }
         
@@ -4920,52 +4922,7 @@
             });
         }
 
-        function showYouTubeFallbackOnImage() {
-            const youtubeFallback = document.getElementById('youtube-fallback');
-            const fallbackText = document.getElementById('fallback-text');
-            const arOverlay = document.getElementById('ar-overlay');
-            
-            // 감지된 이미지 위치에 정확히 오버레이
-            youtubeFallback.setAttribute('visible', true);
-            youtubeFallback.setAttribute('material', 'color: #000; opacity: 0.8');
-            
-            fallbackText.setAttribute('visible', true);
-            fallbackText.setAttribute('value', '📺 유튜브 영상\n터치해서 재생');
-            fallbackText.setAttribute('color', '#ffffff');
-            
-            // 오버레이 표시 (빨간색으로 폴백 상태 표시)
-            arOverlay.setAttribute('visible', true);
-            arOverlay.setAttribute('material', 'color: #ff6b35; opacity: 0.2');
-            
-            // 상태 업데이트
-            document.getElementById('arStatus').textContent = '📺 폴백 영상 준비됨 - 터치하세요';
-            
-            // 클릭 이벤트 설정 (이미지 위치에서 클릭 가능)
-            const clickHandler = () => {
-                openYouTubeVideo();
-                // 한 번만 실행되도록 이벤트 제거
-                youtubeFallback.removeEventListener('click', clickHandler);
-                fallbackText.removeEventListener('click', clickHandler);
-            };
-            
-            youtubeFallback.addEventListener('click', clickHandler);
-            fallbackText.addEventListener('click', clickHandler);
-            
-            // 자동으로 5초 후 유튜브 열기 안내
-            setTimeout(() => {
-                if (fallbackText.getAttribute('visible') === 'true') {
-                    fallbackText.setAttribute('value', '📺 5초 후 자동 실행\n지금 터치하세요!');
-                    fallbackText.setAttribute('color', '#ff6b35');
-                    
-                    // 5초 후 자동 실행
-                    setTimeout(() => {
-                        if (fallbackText.getAttribute('visible') === 'true') {
-                            openYouTubeVideo();
-                        }
-                    }, 5000);
-                }
-                         }, 3000);
-        }
+
 
         function showVideoAlternative(arData) {
             console.log('대체 비디오 표시 방법 시도');
@@ -5247,6 +5204,9 @@
                     const controlText = document.querySelector('#control-text');
                     controlText.setAttribute('visible', true);
                 }, 2000);
+                
+                // 성공 알림
+                console.log('✅ AR 이미지 인식 성공! YouTube 영상이 이미지 위에 표시됩니다.');
             });
             
             // mindAR 타겟 감지 해제 이벤트
@@ -5513,20 +5473,7 @@
             return match ? match[1] : 'dQw4w9WgXcQ'; // 기본 비디오 ID
         }
         
-        function setupFallbackARSystem(arData) {
-            console.log('🔄 폴백 AR 시스템 설정');
-            
-            // 기존 시스템으로 전환
-            hideAllOverlays();
-            
-            // 3초 후 자동으로 YouTube 표시 (테스트용)
-            setTimeout(() => {
-                console.log('🎬 폴백: 자동 YouTube 표시');
-                showYouTubeOnARImage(arData);
-                
-                document.getElementById('arStatus').textContent = '🎬 폴백 모드: YouTube 영상 재생 중';
-            }, 3000);
-        }
+
         
         function updateDebugInfo(info) {
             const debugInfo = document.getElementById('ar-debug-info');
