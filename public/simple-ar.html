@@ -1515,9 +1515,25 @@
             `;
 
             try {
+                console.log('🎯 특수 AR 마커 생성 프로세스 시작');
+                
+                // 입력 데이터 검증
+                if (!extractedFrame) {
+                    throw new Error('추출된 프레임이 없습니다. 먼저 비디오를 처리해주세요.');
+                }
+                
+                if (!processedVideo) {
+                    throw new Error('처리된 비디오가 없습니다. 먼저 비디오를 업로드하고 처리해주세요.');
+                }
+                
                 // 특수 마커가 포함된 AR 이미지 생성
                 const specialARImageDataURL = await generateSpecialARMarker(extractedFrame);
                 
+                if (!specialARImageDataURL) {
+                    throw new Error('특수 마커 이미지 생성 실패');
+                }
+                
+                console.log('📹 비디오 데이터 변환 시작');
                 const videoBase64 = await blobToBase64(processedVideo);
                 
                 const arId = 'ar_' + Date.now();
@@ -1595,14 +1611,27 @@
         async function generateSpecialARMarker(originalFrameDataURL) {
             return new Promise(async (resolve, reject) => {
                 try {
-                    // 캔버스 생성
+                    console.log('🎯 특수 AR 마커 생성 시작');
+                    
+                    // 입력 데이터 검증
+                    if (!originalFrameDataURL || typeof originalFrameDataURL !== 'string') {
+                        throw new Error('유효하지 않은 이미지 데이터');
+                    }
+                    
+                    // 캔버스 생성 및 검증
                     const canvas = document.createElement('canvas');
                     const ctx = canvas.getContext('2d');
+                    
+                    if (!ctx) {
+                        throw new Error('캔버스 컨텍스트 생성 실패');
+                    }
                     
                     // AR 인식을 위한 최적 크기 설정
                     const arSize = 800;
                     canvas.width = arSize;
                     canvas.height = arSize;
+                    
+                    console.log('📐 캔버스 크기 설정:', arSize, 'x', arSize);
                     
                     // 흰색 배경
                     ctx.fillStyle = '#ffffff';
@@ -1610,22 +1639,41 @@
                     
                     // 원본 이미지 로드
                     const img = new Image();
+                    
+                    // 이미지 로드 실패 타임아웃 설정
+                    const timeoutId = setTimeout(() => {
+                        reject(new Error('이미지 로드 시간 초과 (10초)'));
+                    }, 10000);
+                    
                     img.onload = () => {
-                        // 이미지 크기 계산 (정사각형으로 크롭)
-                        const imgSize = Math.min(img.width, img.height);
-                        const cropX = (img.width - imgSize) / 2;
-                        const cropY = (img.height - imgSize) / 2;
-                        
-                        // 여백을 둔 이미지 크기 계산 (특수 마커를 위한 공간 확보)
-                        const imageMargin = 120;
-                        const imageSize = arSize - (imageMargin * 2);
-                        
-                        // 중앙 이미지 그리기
-                        ctx.drawImage(
-                            img, 
-                            cropX, cropY, imgSize, imgSize,
-                            imageMargin, imageMargin, imageSize, imageSize
-                        );
+                        try {
+                            clearTimeout(timeoutId);
+                            console.log('📷 원본 이미지 로드 완료:', img.width, 'x', img.height);
+                            
+                            // 이미지 크기 검증
+                            if (img.width === 0 || img.height === 0) {
+                                throw new Error('유효하지 않은 이미지 크기');
+                            }
+                            
+                            // 이미지 크기 계산 (정사각형으로 크롭)
+                            const imgSize = Math.min(img.width, img.height);
+                            const cropX = (img.width - imgSize) / 2;
+                            const cropY = (img.height - imgSize) / 2;
+                            
+                            console.log('🔄 이미지 크롭 정보:', { imgSize, cropX, cropY });
+                            
+                            // 여백을 둔 이미지 크기 계산 (특수 마커를 위한 공간 확보)
+                            const imageMargin = 120;
+                            const imageSize = arSize - (imageMargin * 2);
+                            
+                            // 중앙 이미지 그리기
+                            ctx.drawImage(
+                                img, 
+                                cropX, cropY, imgSize, imgSize,
+                                imageMargin, imageMargin, imageSize, imageSize
+                            );
+                            
+                            console.log('🖼️ 중앙 이미지 그리기 완료');
                         
                         // === 특수 AR 마커 시스템 ===
                         
@@ -1778,19 +1826,34 @@
                             currentX += width * 4;
                         });
                         
-                        // 완성된 특수 마커 이미지 반환
-                        const specialMarkerDataURL = canvas.toDataURL('image/png', 0.95);
-                        resolve(specialMarkerDataURL);
+                            // 완성된 특수 마커 이미지 반환
+                            const specialMarkerDataURL = canvas.toDataURL('image/png', 0.95);
+                            console.log('✅ 특수 마커 생성 완료');
+                            resolve(specialMarkerDataURL);
+                            
+                        } catch (drawError) {
+                            clearTimeout(timeoutId);
+                            console.error('🚫 마커 그리기 오류:', drawError);
+                            reject(new Error('특수 마커 그리기 실패: ' + drawError.message));
+                        }
                     };
                     
-                    img.onerror = () => {
+                    img.onerror = (errorEvent) => {
+                        clearTimeout(timeoutId);
+                        console.error('🚫 이미지 로드 오류:', errorEvent);
                         reject(new Error('원본 이미지 로드 실패'));
                     };
                     
+                    // CORS 설정
+                    img.crossOrigin = 'anonymous';
+                    
+                    // 이미지 로드 시작
+                    console.log('🔄 이미지 로드 시작...');
                     img.src = originalFrameDataURL;
                     
                 } catch (error) {
-                    reject(error);
+                    console.error('🚫 특수 마커 생성 오류:', error);
+                    reject(new Error('특수 마커 생성 실패: ' + error.message));
                 }
             });
         }
@@ -1805,11 +1868,35 @@
         }
 
         function downloadARImage(arId) {
-            if (extractedFrame) {
-                const link = document.createElement('a');
-                link.download = `AR_Target_${arId}.png`;
-                link.href = extractedFrame;
-                link.click();
+            try {
+                const arData = JSON.parse(localStorage.getItem(`arData_${arId}`));
+                
+                if (arData && arData.targetImage) {
+                    // 특수 마커 이미지 다운로드
+                    const link = document.createElement('a');
+                    const fileName = arData.hasSpecialMarkers ? 
+                        `Special_AR_Marker_${arId}.png` : 
+                        `AR_Target_${arId}.png`;
+                    
+                    link.download = fileName;
+                    link.href = arData.targetImage;
+                    link.click();
+                    
+                    console.log('📥 AR 이미지 다운로드:', fileName);
+                } else if (extractedFrame) {
+                    // 폴백: 원본 프레임 다운로드
+                    const link = document.createElement('a');
+                    link.download = `AR_Frame_${arId}.png`;
+                    link.href = extractedFrame;
+                    link.click();
+                    
+                    console.log('📥 원본 프레임 다운로드:', `AR_Frame_${arId}.png`);
+                } else {
+                    alert('다운로드할 이미지가 없습니다.');
+                }
+            } catch (error) {
+                console.error('다운로드 오류:', error);
+                alert('이미지 다운로드 중 오류가 발생했습니다: ' + error.message);
             }
         }
 
