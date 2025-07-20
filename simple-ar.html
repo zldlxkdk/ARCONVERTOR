@@ -761,19 +761,19 @@
         }
 
         .scanner-overlay-fullscreen {
-            position: absolute;
+            position: fixed;
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
-            width: 300px;
-            height: 300px;
-            border: 3px solid #ff6b35;
-            border-radius: 15px;
-            box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.3);
+            width: 280px;
+            height: 280px;
+            border: 4px solid #ff6b35;
+            border-radius: 20px;
+            box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.4);
             animation: scanPulse 2s infinite;
-            /* 프레임 정확한 중앙 정렬 보장 */
-            margin: auto;
-            display: block;
+            z-index: 1502;
+            pointer-events: none;
+            /* 정확한 중앙 정렬을 위한 고정 위치 */
         }
 
         /* 스캔 프레임의 코너 마커 */
@@ -781,25 +781,26 @@
         .scanner-overlay-fullscreen::after {
             content: '';
             position: absolute;
-            width: 30px;
-            height: 30px;
-            border: 4px solid #ff6b35;
+            width: 40px;
+            height: 40px;
+            border: 5px solid #ff6b35;
+            background: rgba(255, 107, 53, 0.1);
         }
 
         .scanner-overlay-fullscreen::before {
-            top: -4px;
-            left: -4px;
+            top: -6px;
+            left: -6px;
             border-right: transparent;
             border-bottom: transparent;
-            border-top-left-radius: 15px;
+            border-top-left-radius: 20px;
         }
 
         .scanner-overlay-fullscreen::after {
-            top: -4px;
-            right: -4px;
+            top: -6px;
+            right: -6px;
             border-left: transparent;
             border-bottom: transparent;
-            border-top-right-radius: 15px;
+            border-top-right-radius: 20px;
         }
 
         /* 추가 코너 마커 */
@@ -816,25 +817,26 @@
         .corner-markers::after {
             content: '';
             position: absolute;
-            width: 30px;
-            height: 30px;
-            border: 4px solid #ff6b35;
+            width: 40px;
+            height: 40px;
+            border: 5px solid #ff6b35;
+            background: rgba(255, 107, 53, 0.1);
         }
 
         .corner-markers::before {
-            bottom: -4px;
-            left: -4px;
+            bottom: -6px;
+            left: -6px;
             border-right: transparent;
             border-top: transparent;
-            border-bottom-left-radius: 15px;
+            border-bottom-left-radius: 20px;
         }
 
         .corner-markers::after {
-            bottom: -4px;
-            right: -4px;
+            bottom: -6px;
+            right: -6px;
             border-left: transparent;
             border-top: transparent;
-            border-bottom-right-radius: 15px;
+            border-bottom-right-radius: 20px;
         }
 
         .scanner-controls-fullscreen {
@@ -1616,7 +1618,11 @@
             
             // 전체 화면 스캐너 표시
             fullscreenScanner.classList.add('active');
+            fullscreenScanner.style.display = 'block';
             scanStatusFullscreen.textContent = '카메라 권한을 요청하고 있습니다...';
+            
+            // 페이지 스크롤 방지
+            document.body.style.overflow = 'hidden';
             
             try {
                 let stream = null;
@@ -1982,8 +1988,21 @@
                 `;
                 
                 setTimeout(() => {
-                    closeFullscreenScan();
-                    loadAndPlayARWithPosition(arId, scanFrame);
+                    try {
+                        closeFullscreenScan();
+                        loadAndPlayARWithPosition(arId, {
+                            centerX: 0.5,
+                            centerY: 0.5,
+                            width: 0.3,
+                            height: 0.3
+                        });
+                    } catch (error) {
+                        console.error('AR 로딩 오류:', error);
+                        scanInstructionsFullscreen.innerHTML = `
+                            <span style="color: #ff6b35;">❌ AR 로딩 실패</span><br>
+                            <span style="opacity: 0.8;">다시 시도해주세요</span>
+                        `;
+                    }
                 }, 1000);
                 return;
             }
@@ -1993,17 +2012,21 @@
                 <span style="opacity: 0.8; font-size: 14px;">생성한 AR 이미지를 프레임 안에 맞춰주세요</span>
             `;
 
-            // 스캔 프레임 영역 계산
-            const frameRect = scanFrame.getBoundingClientRect();
-            const videoRect = video.getBoundingClientRect();
+            // 스캔 프레임 영역 계산 (고정 중앙 위치 사용)
+            const viewportWidth = window.innerWidth;
+            const viewportHeight = window.innerHeight;
+            const frameSize = 280; // CSS에서 설정한 고정 크기
             
-            // 프레임 영역 상대 좌표 계산
-            const frameX = (frameRect.left - videoRect.left) / videoRect.width;
-            const frameY = (frameRect.top - videoRect.top) / videoRect.height;
-            const frameWidth = frameRect.width / videoRect.width;
-            const frameHeight = frameRect.height / videoRect.height;
+            // 중앙 기준으로 프레임 영역 계산
+            const frameX = (viewportWidth - frameSize) / 2 / viewportWidth;
+            const frameY = (viewportHeight - frameSize) / 2 / viewportHeight;
+            const frameWidth = frameSize / viewportWidth;
+            const frameHeight = frameSize / viewportHeight;
 
-            console.log('스캔 프레임 영역:', { frameX, frameY, frameWidth, frameHeight });
+            console.log('스캔 프레임 영역 (고정 중앙):', { 
+                frameX, frameY, frameWidth, frameHeight,
+                viewportWidth, viewportHeight, frameSize 
+            });
 
             // 카메라에서 프레임 캡처 및 분석
             const canvas = document.createElement('canvas');
@@ -2084,8 +2107,15 @@
                         `;
 
                         setTimeout(() => {
-                            closeFullscreenScan();
-                            loadAndPlayARWithPosition(bestMatch.id, bestMatch.framePosition);
+                            try {
+                                closeFullscreenScan();
+                                setTimeout(() => {
+                                    loadAndPlayARWithPosition(bestMatch.id, bestMatch.framePosition);
+                                }, 200); // 화면 전환 후 약간의 지연
+                            } catch (error) {
+                                console.error('AR 로딩 오류 (고정확도):', error);
+                                showFullscreenScanError(error);
+                            }
                         }, 1500);
 
                     } else if (detectionCount >= maxDetections) {
@@ -2098,8 +2128,15 @@
                             `;
 
                             setTimeout(() => {
-                                closeFullscreenScan();
-                                loadAndPlayARWithPosition(bestMatch.id, bestMatch.framePosition);
+                                try {
+                                    closeFullscreenScan();
+                                    setTimeout(() => {
+                                        loadAndPlayARWithPosition(bestMatch.id, bestMatch.framePosition);
+                                    }, 200);
+                                } catch (error) {
+                                    console.error('AR 로딩 오류 (부분 매칭):', error);
+                                    showFullscreenScanError(error);
+                                }
                             }, 1500);
                         } else {
                             scanInstructionsFullscreen.innerHTML = `
@@ -2111,13 +2148,20 @@
                             const arId = latestKey.replace('arData_', '');
 
                             setTimeout(() => {
-                                closeFullscreenScan();
-                                loadAndPlayARWithPosition(arId, {
-                                    centerX: 0.5,
-                                    centerY: 0.5,
-                                    width: 0.3,
-                                    height: 0.3
-                                });
+                                try {
+                                    closeFullscreenScan();
+                                    setTimeout(() => {
+                                        loadAndPlayARWithPosition(arId, {
+                                            centerX: 0.5,
+                                            centerY: 0.5,
+                                            width: 0.3,
+                                            height: 0.3
+                                        });
+                                    }, 200);
+                                } catch (error) {
+                                    console.error('AR 로딩 오류 (자동 모드):', error);
+                                    showFullscreenScanError(error);
+                                }
                             }, 1500);
                         }
                     }
@@ -2134,13 +2178,20 @@
                     const arId = latestKey.replace('arData_', '');
 
                     setTimeout(() => {
-                        closeFullscreenScan();
-                        loadAndPlayARWithPosition(arId, {
-                            centerX: 0.5,
-                            centerY: 0.5,
-                            width: 0.3,
-                            height: 0.3
-                        });
+                        try {
+                            closeFullscreenScan();
+                            setTimeout(() => {
+                                loadAndPlayARWithPosition(arId, {
+                                    centerX: 0.5,
+                                    centerY: 0.5,
+                                    width: 0.3,
+                                    height: 0.3
+                                });
+                            }, 200);
+                        } catch (error) {
+                            console.error('AR 로딩 오류 (에러 처리):', error);
+                            showFullscreenScanError(error);
+                        }
                     }, 1000);
                 }
 
@@ -2177,25 +2228,50 @@
         function closeFullscreenScan() {
             console.log('전체 화면 스캔 닫기');
             
-            const fullscreenScanner = document.getElementById('fullscreenScanner');
-            const scannerVideoFullscreen = document.getElementById('scannerVideoFullscreen');
-            
-            // 전체 화면 스캐너 숨김
-            fullscreenScanner.classList.remove('active');
-            
-            // 카메라 스트림 정리
-            if (scannerVideoFullscreen && scannerVideoFullscreen.srcObject) {
-                scannerVideoFullscreen.srcObject.getTracks().forEach(track => track.stop());
-                scannerVideoFullscreen.srcObject = null;
+            try {
+                const fullscreenScanner = document.getElementById('fullscreenScanner');
+                const scannerVideoFullscreen = document.getElementById('scannerVideoFullscreen');
+                
+                // 전체 화면 스캐너 숨김
+                if (fullscreenScanner) {
+                    fullscreenScanner.classList.remove('active');
+                    fullscreenScanner.style.display = 'none';
+                }
+                
+                // 카메라 스트림 정리
+                if (scannerVideoFullscreen && scannerVideoFullscreen.srcObject) {
+                    scannerVideoFullscreen.srcObject.getTracks().forEach(track => {
+                        try {
+                            track.stop();
+                        } catch (e) {
+                            console.warn('트랙 정리 오류:', e);
+                        }
+                    });
+                    scannerVideoFullscreen.srcObject = null;
+                }
+                
+                // 타임아웃 정리
+                if (scanTimeout) {
+                    clearTimeout(scanTimeout);
+                    scanTimeout = null;
+                }
+                
+                // 페이지 스크롤 방지 해제
+                document.body.style.overflow = '';
+                
+                console.log('전체 화면 스캔 완전히 정리됨');
+                
+            } catch (error) {
+                console.error('전체 화면 스캔 닫기 오류:', error);
             }
             
-            // 타임아웃 정리
-            if (scanTimeout) {
-                clearTimeout(scanTimeout);
-                scanTimeout = null;
-            }
-            
-            console.log('전체 화면 스캔 완전히 정리됨');
+            // 스캐너 숨김 후 약간의 지연을 두어 화면 전환 안정화
+            setTimeout(() => {
+                const fullscreenScanner = document.getElementById('fullscreenScanner');
+                if (fullscreenScanner) {
+                    fullscreenScanner.style.display = 'none';
+                }
+            }, 100);
         }
 
         function attemptRealImageDetection(arKeys) {
