@@ -225,7 +225,7 @@
             left: 0;
             width: 100%;
             height: 100%;
-            background: #000;
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
             z-index: 1000;
             display: none;
         }
@@ -622,7 +622,7 @@
             width: 100%;
             height: 100%;
             z-index: 1001;
-            display: none;
+            display: block;
         }
 
         .ar-overlay-container.active {
@@ -3476,6 +3476,8 @@
             
             const arData = JSON.parse(arDataJson);
             
+            console.log('🎯 AR 로딩 시작:', arId, arData);
+            
             // 스캔 화면 숨기고 AR 뷰어 표시
             document.getElementById('scannerContainer').style.display = 'none';
             const arViewer = document.getElementById('arViewer');
@@ -3490,22 +3492,58 @@
             const previewVideo = document.getElementById('previewVideo');
             
             if (scannerVideo && scannerVideo.srcObject) {
+                console.log('📹 카메라 스트림 설정 중...');
                 // 배경 카메라 설정
                 cameraBackground.srcObject = scannerVideo.srcObject;
                 // 미리보기도 설정
                 previewVideo.srcObject = scannerVideo.srcObject;
                 document.getElementById('cameraPreview').classList.remove('hidden');
+                
+                // 카메라 스트림이 로드되었는지 확인
+                cameraBackground.onloadedmetadata = () => {
+                    console.log('✅ 카메라 배경 로드 완료');
+                    cameraBackground.play().then(() => {
+                        console.log('✅ 카메라 배경 재생 시작');
+                        document.getElementById('arStatus').textContent = '🎯 카메라 준비 완료 - 이미지 인식 중...';
+                        
+                        // AR 오버레이 컨테이너 활성화
+                        const arOverlayContainer = document.getElementById('arOverlayContainer');
+                        arOverlayContainer.style.display = 'block';
+                        arOverlayContainer.classList.add('active');
+                        
+                        // 이미지 인식 시뮬레이션 시작
+                        setTimeout(() => {
+                            startImageDetectionOverlay(arData);
+                        }, 1000);
+                    }).catch(error => {
+                        console.error('❌ 카메라 배경 재생 실패:', error);
+                        document.getElementById('arStatus').textContent = '❌ 카메라 재생 실패';
+                    });
+                };
+                
+                cameraBackground.onerror = (error) => {
+                    console.error('❌ 카메라 배경 로드 오류:', error);
+                    document.getElementById('arStatus').textContent = '❌ 카메라 로드 실패';
+                };
+            } else {
+                console.warn('⚠️ 카메라 스트림이 없음, 기본 배경으로 실행');
+                document.getElementById('arStatus').textContent = '⚠️ 카메라 없음 - 기본 모드로 실행';
+                
+                // AR 오버레이 컨테이너 활성화
+                const arOverlayContainer = document.getElementById('arOverlayContainer');
+                arOverlayContainer.style.display = 'block';
+                arOverlayContainer.classList.add('active');
+                
+                // 이미지 인식 시뮬레이션 시작
+                setTimeout(() => {
+                    startImageDetectionOverlay(arData);
+                }, 1000);
             }
             
             if (scanTimeout) {
                 clearTimeout(scanTimeout);
                 scanTimeout = null;
             }
-            
-            // 이미지 인식 시뮬레이션 시작
-            setTimeout(() => {
-                startImageDetectionOverlay(arData);
-            }, 2000);
         }
 
         function startImageDetectionOverlay(arData) {
@@ -3517,14 +3555,14 @@
                 document.addEventListener('touchstart', enableAudio, { once: true });
             }
             
-            // 3초 후 이미지 감지 시뮬레이션
+            // 2초 후 이미지 감지 시뮬레이션
             setTimeout(() => {
                 document.getElementById('arStatus').textContent = '✅ 이미지 감지됨! 비디오 준비 중...';
                 
                 // 비디오 로드 및 표시
                 loadVideoOverlay(arData);
                 
-            }, 3000);
+            }, 2000);
         }
 
         function calculateARImageMappingPosition(arData, framePosition, overlayVideo, overlayFrame) {
@@ -4438,17 +4476,26 @@
             const overlayInstructions = document.getElementById('overlayInstructions');
             const overlayFrame = document.getElementById('overlayFrame');
             
-            console.log('AR 이미지 영역 비디오 오버레이 로딩 시작');
-            console.log('비디오 데이터 크기:', arData.videoData ? arData.videoData.length : '없음');
+            console.log('🎬 AR 이미지 영역 비디오 오버레이 로딩 시작');
+            console.log('📊 AR 데이터:', arData);
             
             // 오버레이 컨테이너 표시
             arOverlayContainer.classList.add('active');
             overlayInstructions.textContent = 'AR 이미지 영역 분석 중...';
             
-            // 비디오 데이터 검증 - 일단 유튜브만 사용
-            console.log('비디오 데이터 무시, YouTube 폴백 사용');
-            showYouTubeOverlayAtImageArea(arData, null);
-            return;
+            // YouTube URL이 있으면 YouTube 사용, 없으면 기본 비디오 사용
+            if (arData.youtubeUrl) {
+                console.log('📺 YouTube URL 발견, YouTube 오버레이 사용');
+                showYouTubeOverlayAtImageArea(arData, null);
+                return;
+            }
+            
+            // 비디오 데이터가 없으면 YouTube 폴백 사용
+            if (!arData.videoData) {
+                console.log('⚠️ 비디오 데이터 없음, YouTube 폴백 사용');
+                showYouTubeOverlayAtImageArea(arData, null);
+                return;
+            }
             
             // AR 이미지 영역 매핑 계산 및 오버레이 위치 설정
             calculateARImageMappingPosition(arData, null, overlayVideo, overlayFrame);
