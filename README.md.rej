@@ -1,0 +1,27 @@
+diff a/README.md b/README.md	(rejected hunks)
+@@ -72,25 +72,6 @@
+ http://localhost:5173
+ ```
+ 
+-## 🌐 GitHub Pages 배포
+-
+-### 자동 배포 (권장)
+-1. GitHub 저장소에 코드를 푸시하면 자동으로 배포됩니다
+-2. `main` 브랜치에 푸시할 때마다 GitHub Actions가 자동 빌드 및 배포
+-3. 배포 완료 후 `https://zldlxkdk.github.io/ARCONVERTOR`에서 접속 가능
+-
+-### 수동 배포
+-```bash
+-npm run build
+-npm run deploy
+-```
+-
+-### GitHub Pages 설정
+-1. GitHub 저장소 → Settings → Pages
+-2. Source: "Deploy from a branch" 선택
+-3. Branch: "gh-pages" 선택
+-4. Save 클릭
+-
+ ## 사용 방법
+ 
+ ### 1. 이미지 업로드
