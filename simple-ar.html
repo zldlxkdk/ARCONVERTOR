@@ -3799,23 +3799,31 @@
             scannerOverlayVideo.src = '';
             scannerOverlayVideo.innerHTML = '';
             
-            // 비디오 속성 설정
+            // 비디오 속성 설정 (강화된 자동 재생)
             scannerOverlayVideo.setAttribute('autoplay', 'true');
             scannerOverlayVideo.setAttribute('loop', 'true');
             scannerOverlayVideo.setAttribute('muted', 'true');
             scannerOverlayVideo.setAttribute('playsinline', 'true');
             scannerOverlayVideo.setAttribute('controls', 'false');
+            scannerOverlayVideo.setAttribute('preload', 'auto');
+            
+            // JavaScript 속성도 설정
+            scannerOverlayVideo.autoplay = true;
+            scannerOverlayVideo.loop = true;
+            scannerOverlayVideo.muted = true;
+            scannerOverlayVideo.playsInline = true;
+            scannerOverlayVideo.controls = false;
+            scannerOverlayVideo.preload = 'auto';
             
             // 비디오 스타일 강제 설정 (이미지에 딱 맞게)
             scannerOverlayVideo.style.background = 'transparent';
             scannerOverlayVideo.style.objectFit = 'cover';
-            scannerOverlayVideo.style.width = '100%';
-            scannerOverlayVideo.style.height = '100%';
             scannerOverlayVideo.style.display = 'block';
             scannerOverlayVideo.style.border = 'none';
             scannerOverlayVideo.style.borderRadius = '0';
             scannerOverlayVideo.style.boxShadow = 'none';
             scannerOverlayVideo.style.zIndex = '1002';
+            // 크기는 calculateScannerARPosition에서 설정됨
             
             // 비디오 소스 설정
             if (arData.videoData) {
@@ -3839,11 +3847,35 @@
                     // 비디오 로드 시작 이벤트
                     scannerOverlayVideo.onloadstart = () => {
                         console.log('🎬 스캔 비디오 로드 시작');
+                        // 로드 시작 시에도 재생 시도
+                        setTimeout(() => {
+                            if (scannerOverlayVideo.readyState >= 1) {
+                                const playPromise = scannerOverlayVideo.play();
+                                if (playPromise !== undefined) {
+                                    playPromise.then(() => {
+                                        console.log('✅ 초기 로드 시 재생 시작');
+                                    }).catch(error => {
+                                        console.log('⚠️ 초기 로드 시 재생 실패, 메인 로드 대기:', error);
+                                    });
+                                }
+                            }
+                        }, 200);
                     };
                     
                     // 비디오 메타데이터 로드 완료 이벤트
                     scannerOverlayVideo.onloadedmetadata = () => {
                         console.log('🎬 스캔 비디오 메타데이터 로드 완료');
+                        // 메타데이터 로드 완료 시에도 재생 시도
+                        setTimeout(() => {
+                            const playPromise = scannerOverlayVideo.play();
+                            if (playPromise !== undefined) {
+                                playPromise.then(() => {
+                                    console.log('✅ 메타데이터 로드 후 재생 시작');
+                                }).catch(error => {
+                                    console.log('⚠️ 메타데이터 로드 후 재생 실패, 데이터 로드 대기:', error);
+                                });
+                            }
+                        }, 100);
                     };
                     
                     // 비디오 데이터 로드 완료 이벤트
@@ -3867,26 +3899,61 @@
                             height: scannerOverlayVideo.style.height
                         });
                         
-                        // 강제 자동 재생 시도
-                        setTimeout(() => {
+                        // 강화된 자동 재생 시도 (여러 번 시도)
+                        const attemptPlay = (attemptCount = 0) => {
+                            if (attemptCount >= 5) {
+                                console.error('❌ 비디오 재생 최대 시도 횟수 초과');
+                                // YouTube 폴백
+                                setTimeout(() => {
+                                    loadScannerYouTube(arData);
+                                }, 1000);
+                                return;
+                            }
+                            
                             const playPromise = scannerOverlayVideo.play();
                             if (playPromise !== undefined) {
                                 playPromise.then(() => {
-                                    console.log('✅ 스캔 비디오 재생 시작');
+                                    console.log('✅ 스캔 비디오 재생 시작 (시도 횟수:', attemptCount + 1, ')');
+                                    // 반복 재생 확인
+                                    if (!scannerOverlayVideo.loop) {
+                                        scannerOverlayVideo.loop = true;
+                                        console.log('🔄 반복 재생 설정 완료');
+                                    }
                                 }).catch(error => {
-                                    console.error('❌ 스캔 비디오 재생 실패:', error);
-                                    // YouTube 폴백
+                                    console.error('❌ 스캔 비디오 재생 실패 (시도 횟수:', attemptCount + 1, '):', error);
+                                    // 500ms 후 재시도
                                     setTimeout(() => {
-                                        loadScannerYouTube(arData);
-                                    }, 1000);
+                                        attemptPlay(attemptCount + 1);
+                                    }, 500);
                                 });
+                            } else {
+                                console.log('⚠️ play() Promise가 undefined, 재시도 중...');
+                                setTimeout(() => {
+                                    attemptPlay(attemptCount + 1);
+                                }, 500);
                             }
-                        }, 100); // 100ms 지연 후 재생 시도
+                        };
+                        
+                        // 즉시 재생 시도
+                        attemptPlay();
                     };
                     
                     // 비디오 재생 시작 이벤트
                     scannerOverlayVideo.onplay = () => {
                         console.log('✅ 스캔 비디오 재생 시작됨');
+                        // 반복 재생 확인 및 설정
+                        if (!scannerOverlayVideo.loop) {
+                            scannerOverlayVideo.loop = true;
+                            console.log('🔄 반복 재생 설정 완료 (onplay)');
+                        }
+                        // 재생 상태 확인
+                        console.log('🎬 비디오 재생 상태:', {
+                            paused: scannerOverlayVideo.paused,
+                            ended: scannerOverlayVideo.ended,
+                            loop: scannerOverlayVideo.loop,
+                            currentTime: scannerOverlayVideo.currentTime,
+                            duration: scannerOverlayVideo.duration
+                        });
                     };
                     
                     // 비디오 로드 실패 시
@@ -3901,6 +3968,23 @@
                     // 비디오 로드 진행 이벤트
                     scannerOverlayVideo.onprogress = () => {
                         console.log('🎬 스캔 비디오 로드 진행 중...');
+                    };
+                    
+                    // 비디오 종료 이벤트 (반복 재생 확인)
+                    scannerOverlayVideo.onended = () => {
+                        console.log('🔄 비디오 종료, 반복 재생 시작');
+                        // 반복 재생이 제대로 작동하지 않을 경우 수동으로 재시작
+                        if (scannerOverlayVideo.loop) {
+                            scannerOverlayVideo.currentTime = 0;
+                            const playPromise = scannerOverlayVideo.play();
+                            if (playPromise !== undefined) {
+                                playPromise.then(() => {
+                                    console.log('✅ 반복 재생 수동 시작');
+                                }).catch(error => {
+                                    console.error('❌ 반복 재생 수동 시작 실패:', error);
+                                });
+                            }
+                        }
                     };
                     
                 } catch (error) {
