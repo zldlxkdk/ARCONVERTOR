@@ -26,6 +26,49 @@
             padding: 20px;
         }
 
+        .mode-switch {
+            text-align: center;
+            margin-bottom: 30px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 15px;
+            padding: 15px;
+            backdrop-filter: blur(10px);
+        }
+
+        .mode-toggle {
+            display: flex;
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 25px;
+            padding: 5px;
+            margin-top: 10px;
+        }
+
+        .mode-btn {
+            flex: 1;
+            background: transparent;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+
+        .mode-btn.active {
+            background: #ff6b35;
+            box-shadow: 0 2px 10px rgba(255, 107, 53, 0.3);
+        }
+
+        .create-mode, .scan-mode {
+            display: none;
+        }
+
+        .create-mode.active, .scan-mode.active {
+            display: block;
+        }
+
         .step {
             background: rgba(255, 255, 255, 0.1);
             backdrop-filter: blur(10px);
@@ -239,75 +282,177 @@
             border-radius: 10px;
             margin-top: 10px;
         }
+
+        .scan-info {
+            background: rgba(76, 175, 80, 0.1);
+            border: 1px solid rgba(76, 175, 80, 0.3);
+            border-radius: 10px;
+            padding: 15px;
+            margin: 15px 0;
+            text-align: center;
+        }
+
+        .scan-tips {
+            background: rgba(33, 150, 243, 0.1);
+            border: 1px solid rgba(33, 150, 243, 0.3);
+            border-radius: 10px;
+            padding: 15px;
+            margin: 15px 0;
+        }
+
+        .scan-tips ul {
+            margin: 10px 0;
+            padding-left: 20px;
+        }
+
+        .scan-tips li {
+            margin: 5px 0;
+            font-size: 13px;
+            opacity: 0.9;
+        }
+
+        .scanner-frame {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 250px;
+            height: 250px;
+            border: 2px solid rgba(255, 255, 255, 0.5);
+            border-radius: 15px;
+            z-index: 1001;
+            pointer-events: none;
+        }
+
+        .scanner-frame::before {
+            content: '';
+            position: absolute;
+            top: -5px;
+            left: -5px;
+            right: -5px;
+            bottom: -5px;
+            border: 2px solid #ff6b35;
+            border-radius: 20px;
+            opacity: 0;
+            animation: scanFrame 2s infinite;
+        }
+
+        @keyframes scanFrame {
+            0%, 100% { opacity: 0; transform: scale(0.9); }
+            50% { opacity: 1; transform: scale(1.05); }
+        }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1 style="text-align: center; margin-bottom: 30px; font-size: 24px;">
-            📱 간단 AR 생성기
-        </h1>
-
-        <!-- 1단계: 이미지 업로드 -->
-        <div class="step" id="step1">
-            <div class="step-title">
-                <div class="step-number">1</div>
-                AR 타겟 이미지 업로드
+        <!-- 모드 선택 -->
+        <div class="mode-switch">
+            <h1 style="margin-bottom: 15px; font-size: 24px;">📱 AR 앱</h1>
+            <div class="mode-toggle">
+                <button class="mode-btn active" onclick="switchMode('create')">🎨 AR 생성</button>
+                <button class="mode-btn" onclick="switchMode('scan')">📷 AR 스캔</button>
             </div>
-            <div class="upload-area" onclick="document.getElementById('imageInput').click()">
-                <div class="upload-icon">📷</div>
-                <div class="upload-text">이미지 파일을 클릭하거나 드래그해서 업로드하세요</div>
-                <div style="font-size: 12px; opacity: 0.6; margin-top: 5px;">
-                    JPG, PNG 지원 (최대 5MB)
+        </div>
+
+        <!-- AR 생성 모드 -->
+        <div class="create-mode active">
+            <!-- 1단계: 이미지 업로드 -->
+            <div class="step" id="step1">
+                <div class="step-title">
+                    <div class="step-number">1</div>
+                    AR 타겟 이미지 업로드
                 </div>
-            </div>
-            <input type="file" id="imageInput" class="file-input" accept="image/*" />
-            <div id="imagePreview"></div>
-        </div>
-
-        <!-- 2단계: 비디오 업로드 -->
-        <div class="step" id="step2">
-            <div class="step-title">
-                <div class="step-number">2</div>
-                재생할 비디오 업로드
-            </div>
-            <div class="upload-area" onclick="document.getElementById('videoInput').click()">
-                <div class="upload-icon">🎬</div>
-                <div class="upload-text">비디오 파일을 클릭하거나 드래그해서 업로드하세요</div>
-                <div style="font-size: 12px; opacity: 0.6; margin-top: 5px;">
-                    MP4, WebM 지원 (최대 50MB)
+                <div class="upload-area" onclick="document.getElementById('imageInput').click()">
+                    <div class="upload-icon">📷</div>
+                    <div class="upload-text">이미지 파일을 클릭하거나 드래그해서 업로드하세요</div>
+                    <div style="font-size: 12px; opacity: 0.6; margin-top: 5px;">
+                        JPG, PNG 지원 (최대 5MB)
+                    </div>
                 </div>
+                <input type="file" id="imageInput" class="file-input" accept="image/*" />
+                <div id="imagePreview"></div>
             </div>
-            <input type="file" id="videoInput" class="file-input" accept="video/*" />
-            <div id="videoPreview"></div>
+
+            <!-- 2단계: 비디오 업로드 -->
+            <div class="step" id="step2">
+                <div class="step-title">
+                    <div class="step-number">2</div>
+                    재생할 비디오 업로드
+                </div>
+                <div class="upload-area" onclick="document.getElementById('videoInput').click()">
+                    <div class="upload-icon">🎬</div>
+                    <div class="upload-text">비디오 파일을 클릭하거나 드래그해서 업로드하세요</div>
+                    <div style="font-size: 12px; opacity: 0.6; margin-top: 5px;">
+                        MP4, WebM 지원 (최대 50MB)
+                    </div>
+                </div>
+                <input type="file" id="videoInput" class="file-input" accept="video/*" />
+                <div id="videoPreview"></div>
+            </div>
+
+            <!-- 3단계: AR 타겟 생성 -->
+            <div class="step" id="step3">
+                <div class="step-title">
+                    <div class="step-number">3</div>
+                    AR 타겟 생성
+                </div>
+                <button class="btn" id="generateBtn" onclick="generateARTarget()" disabled>
+                    AR 타겟 생성하기
+                </button>
+                <div id="generateProgress"></div>
+                <div id="targetResult"></div>
+            </div>
+
+            <!-- 4단계: AR 스캔 -->
+            <div class="step" id="step4">
+                <div class="step-title">
+                    <div class="step-number">4</div>
+                    AR 스캔 시작
+                </div>
+                <div id="scanInstructions">
+                    <p style="font-size: 14px; opacity: 0.8; margin-bottom: 15px;">
+                        아래 이미지를 카메라로 비춰주세요
+                    </p>
+                </div>
+                <button class="btn" id="scanBtn" onclick="startARScan()" disabled>
+                    📷 AR 스캔 시작
+                </button>
+            </div>
         </div>
 
-        <!-- 3단계: AR 타겟 생성 -->
-        <div class="step" id="step3">
-            <div class="step-title">
-                <div class="step-number">3</div>
-                AR 타겟 생성
-            </div>
-            <button class="btn" id="generateBtn" onclick="generateARTarget()" disabled>
-                AR 타겟 생성하기
-            </button>
-            <div id="generateProgress"></div>
-            <div id="targetResult"></div>
-        </div>
+        <!-- AR 스캔 모드 -->
+        <div class="scan-mode">
+            <div class="step active">
+                <div class="step-title">
+                    <div class="step-number">🔍</div>
+                    범용 AR 스캐너
+                </div>
+                
+                <div class="scan-info">
+                    <div style="font-size: 16px; font-weight: 600; margin-bottom: 10px;">
+                        🎯 모든 이미지 인식 가능
+                    </div>
+                    <div style="font-size: 14px; opacity: 0.9;">
+                        다른 기기에서 생성한 AR 이미지도<br>
+                        자동으로 감지하여 비디오를 재생합니다
+                    </div>
+                </div>
 
-        <!-- 4단계: AR 스캔 -->
-        <div class="step" id="step4">
-            <div class="step-title">
-                <div class="step-number">4</div>
-                AR 스캔 시작
+                <div class="scan-tips">
+                    <div style="font-weight: 600; margin-bottom: 10px;">📋 스캔 가능한 이미지:</div>
+                    <ul>
+                        <li>📚 책 표지, 잡지 커버</li>
+                        <li>🏷️ 명함, 카드, 포스터</li>
+                        <li>🖼️ 사진, 그림, 일러스트</li>
+                        <li>📱 QR 코드, 바코드</li>
+                        <li>🎨 로고, 패턴이 있는 이미지</li>
+                    </ul>
+                </div>
+
+                <button class="btn" onclick="startUniversalScan()">
+                    🔍 범용 AR 스캔 시작
+                </button>
             </div>
-            <div id="scanInstructions">
-                <p style="font-size: 14px; opacity: 0.8; margin-bottom: 15px;">
-                    아래 이미지를 카메라로 비춰주세요
-                </p>
-            </div>
-            <button class="btn" id="scanBtn" onclick="startARScan()" disabled>
-                📷 AR 스캔 시작
-            </button>
         </div>
     </div>
 
@@ -317,6 +462,9 @@
             <div class="ar-status" id="arStatus">카메라 준비 중...</div>
             <button class="ar-close" onclick="closeARViewer()">✕ 닫기</button>
         </div>
+        
+        <!-- 스캔 프레임 (범용 모드에서만 표시) -->
+        <div class="scanner-frame" id="scannerFrame" style="display: none;"></div>
         
         <a-scene 
             id="ar-scene"
@@ -335,6 +483,19 @@
                        webkit-playsinline="true" 
                        playsinline="true">
                 </video>
+                <!-- 범용 스캔용 샘플 비디오들 -->
+                <video id="sample1" 
+                       src="https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4"
+                       preload="auto" loop="true" muted="true" webkit-playsinline="true" playsinline="true" crossorigin="anonymous">
+                </video>
+                <video id="sample2" 
+                       src="https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4"
+                       preload="auto" loop="true" muted="true" webkit-playsinline="true" playsinline="true" crossorigin="anonymous">
+                </video>
+                <video id="sample3" 
+                       src="https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4"
+                       preload="auto" loop="true" muted="true" webkit-playsinline="true" playsinline="true" crossorigin="anonymous">
+                </video>
             </a-assets>
 
             <a-entity id="ar-target" mindar-image-target="targetIndex: 0">
@@ -349,15 +510,51 @@
                 </a-video>
             </a-entity>
 
+            <!-- 범용 스캔용 가상 타겟 -->
+            <a-entity id="universal-target" position="0 0 -2" visible="false">
+                <a-video 
+                    id="universal-video"
+                    src="#sample1" 
+                    position="0 0 0.1" 
+                    rotation="0 0 0"
+                    width="2" 
+                    height="1.5"
+                    material="transparent: true"
+                    visible="false">
+                </a-video>
+            </a-entity>
+
             <a-entity camera></a-entity>
         </a-scene>
     </div>
 
     <script>
+        let currentMode = 'create';
         let uploadedImage = null;
         let uploadedVideo = null;
         let arTargetData = null;
         let userInteracted = false;
+        let universalScanActive = false;
+        let detectionCount = 0;
+        let lastDetectionTime = 0;
+        const sampleVideos = ['sample1', 'sample2', 'sample3'];
+
+        // 모드 전환
+        function switchMode(mode) {
+            currentMode = mode;
+            
+            // 버튼 상태 업데이트
+            document.querySelectorAll('.mode-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            event.target.classList.add('active');
+            
+            // 모드 컨텐츠 전환
+            document.querySelectorAll('.create-mode, .scan-mode').forEach(el => {
+                el.classList.remove('active');
+            });
+            document.querySelector(`.${mode}-mode`).classList.add('active');
+        }
 
         // 파일 업로드 핸들링
         document.getElementById('imageInput').addEventListener('change', handleImageUpload);
@@ -474,10 +671,8 @@
             `;
 
             try {
-                // 클라이언트 사이드에서 간단한 AR 타겟 시뮬레이션
                 await new Promise(resolve => setTimeout(resolve, 2000));
                 
-                // 이미지를 AR 타겟으로 사용 (실제로는 mindAR 타겟 생성 필요)
                 const reader = new FileReader();
                 reader.onload = function(e) {
                     arTargetData = {
@@ -500,7 +695,6 @@
                     document.getElementById('step4').classList.add('active');
                     document.getElementById('scanBtn').disabled = false;
                     
-                    // AR 뷰어 준비
                     prepareARViewer();
                 };
                 reader.readAsDataURL(uploadedImage);
@@ -516,7 +710,6 @@
         }
 
         function prepareARViewer() {
-            // 비디오 소스 설정
             const videoReader = new FileReader();
             videoReader.onload = function(e) {
                 const arVideo = document.getElementById('ar-video');
@@ -531,42 +724,67 @@
                 return;
             }
 
-            try {
-                // AR 뷰어 표시
-                document.getElementById('arViewer').style.display = 'block';
-                document.getElementById('arStatus').textContent = '카메라 초기화 중...';
-                
-                // 사용자 상호작용 이벤트 등록
-                if (!userInteracted) {
-                    document.addEventListener('click', enableAudio, { once: true });
-                    document.addEventListener('touchstart', enableAudio, { once: true });
-                }
-                
-                // AR 시스템 초기화 (간단한 시뮬레이션)
-                await initializeAR();
-                
-            } catch (error) {
-                alert('AR 스캔 시작 실패: ' + error.message);
-                closeARViewer();
+            document.getElementById('arViewer').style.display = 'block';
+            document.getElementById('arStatus').textContent = '카메라 초기화 중...';
+            
+            if (!userInteracted) {
+                document.addEventListener('click', enableAudio, { once: true });
+                document.addEventListener('touchstart', enableAudio, { once: true });
             }
+            
+            await initializeAR();
+        }
+
+        // 범용 스캔 시작
+        async function startUniversalScan() {
+            universalScanActive = true;
+            document.getElementById('arViewer').style.display = 'block';
+            document.getElementById('scannerFrame').style.display = 'block';
+            document.getElementById('arStatus').textContent = '범용 스캐너 시작 중...';
+            
+            if (!userInteracted) {
+                document.addEventListener('click', enableAudio, { once: true });
+                document.addEventListener('touchstart', enableAudio, { once: true });
+            }
+            
+            await initializeUniversalScan();
         }
 
         async function initializeAR() {
-            // 실제로는 mindAR 타겟 파일이 필요하지만, 
-            // 여기서는 간단한 시뮬레이션으로 대체
-            
             document.getElementById('arStatus').textContent = 'AR 준비 완료 - 이미지를 비춰주세요';
             
-            // 5초 후 자동으로 타겟 감지 시뮬레이션
             setTimeout(() => {
                 simulateTargetDetection();
             }, 3000);
         }
 
+        async function initializeUniversalScan() {
+            document.getElementById('arStatus').textContent = '🔍 스캐너 준비 완료 - 아무 이미지나 비춰주세요';
+            
+            // 범용 감지 시뮬레이션
+            const scanInterval = setInterval(() => {
+                if (!universalScanActive) {
+                    clearInterval(scanInterval);
+                    return;
+                }
+                
+                // 5% 확률로 감지 시뮬레이션
+                if (Math.random() > 0.95) {
+                    simulateUniversalDetection();
+                }
+            }, 200);
+
+            // 클릭으로도 감지 시뮬레이션
+            document.addEventListener('click', function(e) {
+                if (universalScanActive && (e.target.id === 'ar-scene' || e.target.tagName === 'A-SCENE')) {
+                    simulateUniversalDetection();
+                }
+            });
+        }
+
         function simulateTargetDetection() {
             document.getElementById('arStatus').textContent = '🎯 타겟 감지됨! 비디오 재생 중';
             
-            // AR 비디오 표시 및 재생
             const arVideo = document.getElementById('ar-video');
             const arVideoElement = document.querySelector('a-video');
             
@@ -582,23 +800,73 @@
             }
         }
 
-        function enableAudio() {
-            userInteracted = true;
-            const arVideo = document.getElementById('ar-video');
-            if (arVideo) {
-                arVideo.muted = false;
+        function simulateUniversalDetection() {
+            const now = Date.now();
+            if (now - lastDetectionTime < 3000) return; // 3초 쿨다운
+            
+            lastDetectionTime = now;
+            detectionCount++;
+            
+            // 랜덤 샘플 비디오 선택
+            const randomVideoId = sampleVideos[Math.floor(Math.random() * sampleVideos.length)];
+            
+            document.getElementById('arStatus').textContent = `🎯 이미지 감지됨! (${detectionCount}회) 비디오 재생 중`;
+            
+            // 범용 비디오 재생
+            const universalVideo = document.getElementById('universal-video');
+            const sampleVideo = document.getElementById(randomVideoId);
+            
+            if (universalVideo && sampleVideo) {
+                // 이전 비디오 정지
+                sampleVideos.forEach(id => {
+                    const video = document.getElementById(id);
+                    if (video) {
+                        video.pause();
+                        video.currentTime = 0;
+                    }
+                });
+                
+                // 새 비디오 설정 및 재생
+                universalVideo.setAttribute('src', `#${randomVideoId}`);
+                universalVideo.setAttribute('visible', true);
+                document.getElementById('universal-target').setAttribute('visible', true);
+                
+                if (userInteracted) {
+                    sampleVideo.muted = false;
+                }
+                sampleVideo.play().catch(console.error);
+                
+                // 5초 후 자동 숨김
+                setTimeout(() => {
+                    universalVideo.setAttribute('visible', false);
+                    document.getElementById('universal-target').setAttribute('visible', false);
+                    sampleVideo.pause();
+                    document.getElementById('arStatus').textContent = '🔍 이미지를 찾고 있습니다...';
+                }, 5000);
             }
         }
 
+        function enableAudio() {
+            userInteracted = true;
+            const allVideos = document.querySelectorAll('video');
+            allVideos.forEach(video => {
+                if (video.currentTime > 0) {
+                    video.muted = false;
+                }
+            });
+        }
+
         function closeARViewer() {
+            universalScanActive = false;
             document.getElementById('arViewer').style.display = 'none';
+            document.getElementById('scannerFrame').style.display = 'none';
             
-            // 비디오 정지
-            const arVideo = document.getElementById('ar-video');
-            if (arVideo) {
-                arVideo.pause();
-                arVideo.currentTime = 0;
-            }
+            // 모든 비디오 정지
+            const allVideos = document.querySelectorAll('video');
+            allVideos.forEach(video => {
+                video.pause();
+                video.currentTime = 0;
+            });
         }
 
         // 모바일 최적화
