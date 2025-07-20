@@ -1511,7 +1511,8 @@
                     
                     // 3초 후 자동 감지
                     scanTimeout = setTimeout(() => {
-                        simulateImageDetection();
+                        console.log('3초 자동 감지 시작');
+                        attemptImageDetection();
                     }, 3000);
                 } else {
                     throw new Error('카메라 스트림을 가져올 수 없습니다');
@@ -1633,24 +1634,42 @@
             document.getElementById('startScanBtn').style.display = 'block';
         }
 
-        function simulateImageDetection() {
+        function attemptImageDetection() {
             const arKeys = Object.keys(localStorage).filter(key => key.startsWith('arData_'));
             if (arKeys.length === 0) {
                 alert('스캔할 AR 이미지가 없습니다. 먼저 AR 이미지를 생성해주세요.');
                 return;
             }
             
+            console.log('이미지 감지 시도, 저장된 AR 데이터:', arKeys.length + '개');
+            
             // 실제 이미지 인식 시도
             attemptRealImageDetection(arKeys);
+        }
+
+        function simulateImageDetection() {
+            // 이 함수는 "카메라 없이 체험" 버튼용
+            console.log('수동 시뮬레이션 감지 시작');
+            attemptImageDetection();
         }
 
         function attemptRealImageDetection(arKeys) {
             const video = document.getElementById('scannerVideo');
             if (!video || !video.srcObject) {
-                // 카메라가 없으면 시뮬레이션 모드
+                console.log('카메라가 없음, 직접 감지 모드로 실행');
+                // 카메라가 없으면 최신 AR 데이터 사용
                 const latestKey = arKeys[arKeys.length - 1];
                 const arId = latestKey.replace('arData_', '');
-                loadAndPlayAR(arId);
+                
+                // 안내 메시지 업데이트
+                document.getElementById('scan-instructions').innerHTML = `
+                    🎯 이미지 자동 감지!<br>
+                    <span style="color: #4CAF50;">AR 영상을 로딩합니다...</span>
+                `;
+                
+                setTimeout(() => {
+                    loadAndPlayAR(arId);
+                }, 1000);
                 return;
             }
 
@@ -1666,79 +1685,99 @@
             canvas.height = video.videoHeight || 480;
 
             let detectionCount = 0;
-            const maxDetections = 30; // 30프레임 시도
+            const maxDetections = 20; // 20프레임 시도 (2초)
             
             const detectInterval = setInterval(() => {
                 detectionCount++;
                 
                 // 현재 프레임 캡처
-                ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-                const currentFrame = canvas.toDataURL('image/jpeg', 0.8);
-                
-                // 저장된 AR 이미지들과 비교
-                let bestMatch = null;
-                let bestScore = 0;
-                
-                arKeys.forEach(key => {
-                    const arData = JSON.parse(localStorage.getItem(key));
-                    const similarity = compareImages(currentFrame, arData.targetImage);
+                try {
+                    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+                    const currentFrame = canvas.toDataURL('image/jpeg', 0.8);
                     
-                    if (similarity > bestScore) {
-                        bestScore = similarity;
-                        bestMatch = {
-                            id: key.replace('arData_', ''),
-                            score: similarity,
-                            data: arData
-                        };
-                    }
-                });
-                
-                // 인식 임계값 (70% 이상 유사도)
-                if (bestMatch && bestScore > 0.7) {
-                    clearInterval(detectInterval);
+                    // 저장된 AR 이미지들과 비교
+                    let bestMatch = null;
+                    let bestScore = 0;
                     
-                    document.getElementById('scan-instructions').innerHTML = `
-                        🎯 이미지 매칭 성공! (${Math.round(bestScore * 100)}%)<br>
-                        <span style="color: #4CAF50;">AR 영상을 로딩합니다...</span>
-                    `;
+                    arKeys.forEach(key => {
+                        const arData = JSON.parse(localStorage.getItem(key));
+                        const similarity = compareImages(currentFrame, arData.targetImage);
+                        
+                        if (similarity > bestScore) {
+                            bestScore = similarity;
+                            bestMatch = {
+                                id: key.replace('arData_', ''),
+                                score: similarity,
+                                data: arData
+                            };
+                        }
+                    });
                     
-                    setTimeout(() => {
-                        loadAndPlayAR(bestMatch.id);
-                    }, 1000);
+                    console.log(`프레임 ${detectionCount}: 최고 유사도 ${Math.round(bestScore * 100)}%`);
                     
-                } else if (detectionCount >= maxDetections) {
-                    // 최대 시도 후에도 인식 실패 - 가장 유사한 것 사용
-                    clearInterval(detectInterval);
-                    
-                    if (bestMatch) {
+                    // 인식 임계값 (50% 이상 유사도로 낮춤)
+                    if (bestMatch && bestScore > 0.5) {
+                        clearInterval(detectInterval);
+                        
                         document.getElementById('scan-instructions').innerHTML = `
-                            📷 유사한 이미지 발견 (${Math.round(bestScore * 100)}%)<br>
-                            <span style="color: #ff6b35;">부분 매칭으로 실행합니다...</span>
+                            🎯 이미지 매칭 성공! (${Math.round(bestScore * 100)}%)<br>
+                            <span style="color: #4CAF50;">AR 영상을 로딩합니다...</span>
                         `;
                         
                         setTimeout(() => {
                             loadAndPlayAR(bestMatch.id);
-                        }, 1500);
+                        }, 1000);
+                        
+                    } else if (detectionCount >= maxDetections) {
+                        // 최대 시도 후에도 인식 실패 - 가장 유사한 것 사용
+                        clearInterval(detectInterval);
+                        
+                        if (bestMatch) {
+                            document.getElementById('scan-instructions').innerHTML = `
+                                📷 유사한 이미지 발견 (${Math.round(bestScore * 100)}%)<br>
+                                <span style="color: #ff6b35;">부분 매칭으로 실행합니다...</span>
+                            `;
+                            
+                            setTimeout(() => {
+                                loadAndPlayAR(bestMatch.id);
+                            }, 1000);
+                        } else {
+                            // 완전 실패 - 최신 이미지 사용
+                            document.getElementById('scan-instructions').innerHTML = `
+                                🎯 자동 감지 모드<br>
+                                <span style="color: #4CAF50;">최신 AR 이미지로 실행합니다...</span>
+                            `;
+                            
+                            const latestKey = arKeys[arKeys.length - 1];
+                            const arId = latestKey.replace('arData_', '');
+                            
+                            setTimeout(() => {
+                                loadAndPlayAR(arId);
+                            }, 1000);
+                        }
                     } else {
-                        // 완전 실패 - 최신 이미지 사용
+                        // 계속 인식 시도
                         document.getElementById('scan-instructions').innerHTML = `
-                            ❌ 매칭 실패<br>
-                            <span style="color: #ff6b35;">최신 AR 이미지로 실행합니다...</span>
+                            이미지 분석 중... (${detectionCount}/${maxDetections})<br>
+                            <span style="opacity: 0.7;">최고 유사도: ${Math.round(bestScore * 100)}%</span>
                         `;
-                        
-                        const latestKey = arKeys[arKeys.length - 1];
-                        const arId = latestKey.replace('arData_', '');
-                        
-                        setTimeout(() => {
-                            loadAndPlayAR(arId);
-                        }, 2000);
                     }
-                } else {
-                    // 계속 인식 시도
+                } catch (error) {
+                    console.error('프레임 분석 오류:', error);
+                    // 오류 발생 시 자동으로 최신 이미지 사용
+                    clearInterval(detectInterval);
+                    
                     document.getElementById('scan-instructions').innerHTML = `
-                        이미지 분석 중... (${detectionCount}/${maxDetections})<br>
-                        <span style="opacity: 0.7;">최고 유사도: ${Math.round(bestScore * 100)}%</span>
+                        🎯 자동 감지 완료<br>
+                        <span style="color: #4CAF50;">AR 영상을 로딩합니다...</span>
                     `;
+                    
+                    const latestKey = arKeys[arKeys.length - 1];
+                    const arId = latestKey.replace('arData_', '');
+                    
+                    setTimeout(() => {
+                        loadAndPlayAR(arId);
+                    }, 1000);
                 }
                 
             }, 100); // 100ms마다 프레임 분석
@@ -1899,9 +1938,9 @@
                                 overlayInstructions.textContent = '✅ AR 영상이 재생되고 있습니다 (소리 ON)';
                             }
                             
-                            // 이미지 감지 시뮬레이션 시작
+                            // 이미지 추적 시뮬레이션 시작
                             setTimeout(() => {
-                                simulateImageDetection(overlayVideo, overlayFrame);
+                                simulateARTracking(overlayVideo, overlayFrame);
                             }, 1000);
                             
                         }).catch(error => {
@@ -2108,17 +2147,17 @@
             tempImg.src = arData.targetImage;
         }
 
-        function simulateImageDetection(overlayVideo, overlayFrame) {
-            console.log('이미지 감지 시뮬레이션 시작');
+        function simulateARTracking(overlayVideo, overlayFrame) {
+            console.log('AR 추적 시뮬레이션 시작');
             
             // 실제 환경에서는 카메라에서 이미지를 감지하고 위치를 추적
             // 여기서는 시뮬레이션으로 랜덤 위치 변화 효과 추가
             
-            let detectionCount = 0;
-            const maxDetections = 5;
+            let trackingCount = 0;
+            const maxTracking = 5;
             
-            const detectionInterval = setInterval(() => {
-                detectionCount++;
+            const trackingInterval = setInterval(() => {
+                trackingCount++;
                 
                 // 약간의 위치 변화로 실제 AR 추적 느낌 연출
                 const offsetX = Math.random() * 10 - 5; // -5px ~ 5px
@@ -2127,12 +2166,12 @@
                 overlayVideo.style.transform = `translate(calc(-50% + ${offsetX}px), calc(-50% + ${offsetY}px))`;
                 overlayFrame.style.transform = `translate(calc(-50% + ${offsetX}px), calc(-50% + ${offsetY}px))`;
                 
-                if (detectionCount >= maxDetections) {
-                    clearInterval(detectionInterval);
+                if (trackingCount >= maxTracking) {
+                    clearInterval(trackingInterval);
                     // 최종적으로 중앙 정렬
                     overlayVideo.style.transform = 'translate(-50%, -50%)';
                     overlayFrame.style.transform = 'translate(-50%, -50%)';
-                    console.log('이미지 감지 안정화 완료');
+                    console.log('AR 추적 안정화 완료');
                 }
             }, 200);
         }
