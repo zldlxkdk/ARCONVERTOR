@@ -3654,15 +3654,14 @@
             const arData = JSON.parse(arDataJson);
             console.log('🎯 스캔 AR 로딩 시작:', arId, arData);
             
-            // 스캔 AR 오버레이 표시
+            // 스캔 AR 오버레이 표시 (불필요한 UI 제거)
             const scannerArOverlay = document.getElementById('scannerArOverlay');
             const scannerArStatus = document.getElementById('scannerArStatus');
             const scannerArControls = document.getElementById('scannerArControls');
             
             scannerArOverlay.style.display = 'block';
-            scannerArStatus.style.display = 'block';
-            scannerArControls.style.display = 'flex';
-            scannerArStatus.textContent = '🎬 AR 영상 로딩 중...';
+            scannerArStatus.style.display = 'none'; // 상태 표시 숨기기
+            scannerArControls.style.display = 'none'; // 컨트롤 숨기기
             
             // AR 이미지 영역 계산 및 비디오 위치 설정
             calculateScannerARPosition(arData);
@@ -3708,7 +3707,7 @@
             console.log('🔇 스캔 AR 숨김');
         }
 
-        // 스캔 AR 위치 계산
+        // 스캔 AR 위치 계산 - AR 이미지에 딱 맞게 설정
         function calculateScannerARPosition(arData) {
             const scannerOverlayVideo = document.getElementById('scannerOverlayVideo');
             const scannerOverlayFrame = document.getElementById('scannerOverlayFrame');
@@ -3718,36 +3717,30 @@
             const containerWidth = scannerContainer.offsetWidth;
             const containerHeight = scannerContainer.offsetHeight;
             
-            // AR 비디오 크기 (스캔 프레임 크기에 맞춤)
-            const videoWidth = 280;
-            const videoHeight = 200;
+            // AR 이미지 크기 (스캔 프레임 크기와 동일하게 설정)
+            const imageSize = 280; // 스캔 프레임 크기
             
             // 중앙 위치 계산
-            const left = (containerWidth - videoWidth) / 2;
-            const top = (containerHeight - videoHeight) / 2;
+            const left = (containerWidth - imageSize) / 2;
+            const top = (containerHeight - imageSize) / 2;
             
-            // 비디오 위치 설정
+            // 비디오를 AR 이미지와 정확히 같은 위치와 크기로 설정
             scannerOverlayVideo.style.left = left + 'px';
             scannerOverlayVideo.style.top = top + 'px';
-            scannerOverlayVideo.style.width = videoWidth + 'px';
-            scannerOverlayVideo.style.height = videoHeight + 'px';
+            scannerOverlayVideo.style.width = imageSize + 'px';
+            scannerOverlayVideo.style.height = imageSize + 'px';
             scannerOverlayVideo.style.display = 'block';
             scannerOverlayVideo.style.background = 'transparent';
             scannerOverlayVideo.style.objectFit = 'cover';
-            scannerOverlayVideo.style.border = '3px solid #ff6b35';
-            scannerOverlayVideo.style.borderRadius = '12px';
-            scannerOverlayVideo.style.boxShadow = '0 0 25px rgba(255, 107, 53, 0.8)';
+            scannerOverlayVideo.style.border = 'none'; // 테두리 제거
+            scannerOverlayVideo.style.borderRadius = '0'; // 둥근 모서리 제거
+            scannerOverlayVideo.style.boxShadow = 'none'; // 그림자 제거
             scannerOverlayVideo.style.zIndex = '1002';
             
-            // 프레임 위치 설정 (비디오보다 약간 크게)
-            const frameMargin = 10;
-            scannerOverlayFrame.style.left = (left - frameMargin) + 'px';
-            scannerOverlayFrame.style.top = (top - frameMargin) + 'px';
-            scannerOverlayFrame.style.width = (videoWidth + frameMargin * 2) + 'px';
-            scannerOverlayFrame.style.height = (videoHeight + frameMargin * 2) + 'px';
-            scannerOverlayFrame.style.display = 'block';
+            // 프레임 숨기기 (불필요한 UI 제거)
+            scannerOverlayFrame.style.display = 'none';
             
-            console.log('📍 스캔 AR 위치 설정:', { left, top, width: videoWidth, height: videoHeight });
+            console.log('📍 스캔 AR 위치 설정 - 이미지에 딱 맞게:', { left, top, width: imageSize, height: imageSize });
         }
 
         // 스캔 YouTube 로드
@@ -3756,7 +3749,6 @@
             const scannerArStatus = document.getElementById('scannerArStatus');
             
             console.log('📺 스캔 YouTube 로드 시작');
-            scannerArStatus.textContent = '📺 YouTube 영상 로딩 중...';
             
             // YouTube URL 설정
             const youtubeUrl = arData.youtubeUrl || 'https://www.youtube.com/watch?v=MX_UceuxveA';
@@ -3780,13 +3772,11 @@
             // iframe 로드 완료 이벤트
             iframe.onload = () => {
                 console.log('✅ YouTube iframe 로드 완료');
-                scannerArStatus.textContent = '📺 YouTube 영상 재생 중';
             };
             
             // iframe 로드 실패 이벤트
             iframe.onerror = () => {
                 console.error('❌ YouTube iframe 로드 실패');
-                scannerArStatus.textContent = '❌ YouTube 로드 실패';
             };
             
             // 기존 내용 제거하고 iframe 추가
@@ -3816,15 +3806,15 @@
             scannerOverlayVideo.setAttribute('playsinline', 'true');
             scannerOverlayVideo.setAttribute('controls', 'false');
             
-            // 비디오 스타일 강제 설정
+            // 비디오 스타일 강제 설정 (이미지에 딱 맞게)
             scannerOverlayVideo.style.background = 'transparent';
             scannerOverlayVideo.style.objectFit = 'cover';
             scannerOverlayVideo.style.width = '100%';
             scannerOverlayVideo.style.height = '100%';
             scannerOverlayVideo.style.display = 'block';
-            scannerOverlayVideo.style.border = '3px solid #ff6b35';
-            scannerOverlayVideo.style.borderRadius = '12px';
-            scannerOverlayVideo.style.boxShadow = '0 0 25px rgba(255, 107, 53, 0.8)';
+            scannerOverlayVideo.style.border = 'none';
+            scannerOverlayVideo.style.borderRadius = '0';
+            scannerOverlayVideo.style.boxShadow = 'none';
             scannerOverlayVideo.style.zIndex = '1002';
             
             // 비디오 소스 설정
@@ -3849,27 +3839,24 @@
                     // 비디오 로드 시작 이벤트
                     scannerOverlayVideo.onloadstart = () => {
                         console.log('🎬 스캔 비디오 로드 시작');
-                        scannerArStatus.textContent = '🎬 비디오 로딩 중...';
                     };
                     
                     // 비디오 메타데이터 로드 완료 이벤트
                     scannerOverlayVideo.onloadedmetadata = () => {
                         console.log('🎬 스캔 비디오 메타데이터 로드 완료');
-                        scannerArStatus.textContent = '🎬 비디오 준비 중...';
                     };
                     
                     // 비디오 데이터 로드 완료 이벤트
                     scannerOverlayVideo.onloadeddata = () => {
                         console.log('🎬 스캔 비디오 데이터 로드 완료');
-                        scannerArStatus.textContent = '🎬 AR 영상 재생 중';
                         
-                        // 비디오 스타일 최종 확인
+                        // 비디오 스타일 최종 확인 (이미지에 딱 맞게)
                         scannerOverlayVideo.style.background = 'transparent';
                         scannerOverlayVideo.style.objectFit = 'cover';
                         scannerOverlayVideo.style.display = 'block';
-                        scannerOverlayVideo.style.border = '3px solid #ff6b35';
-                        scannerOverlayVideo.style.borderRadius = '12px';
-                        scannerOverlayVideo.style.boxShadow = '0 0 25px rgba(255, 107, 53, 0.8)';
+                        scannerOverlayVideo.style.border = 'none';
+                        scannerOverlayVideo.style.borderRadius = '0';
+                        scannerOverlayVideo.style.boxShadow = 'none';
                         scannerOverlayVideo.style.zIndex = '1002';
                         
                         console.log('🎬 비디오 스타일 적용 완료:', {
@@ -3880,33 +3867,31 @@
                             height: scannerOverlayVideo.style.height
                         });
                         
-                        // 비디오 재생 시도
-                        const playPromise = scannerOverlayVideo.play();
-                        if (playPromise !== undefined) {
-                            playPromise.then(() => {
-                                console.log('✅ 스캔 비디오 재생 시작');
-                                scannerArStatus.textContent = '🎬 AR 영상 재생 중';
-                            }).catch(error => {
-                                console.error('❌ 스캔 비디오 재생 실패:', error);
-                                scannerArStatus.textContent = '❌ 비디오 재생 실패 - YouTube로 전환';
-                                // YouTube 폴백
-                                setTimeout(() => {
-                                    loadScannerYouTube(arData);
-                                }, 1000);
-                            });
-                        }
+                        // 강제 자동 재생 시도
+                        setTimeout(() => {
+                            const playPromise = scannerOverlayVideo.play();
+                            if (playPromise !== undefined) {
+                                playPromise.then(() => {
+                                    console.log('✅ 스캔 비디오 재생 시작');
+                                }).catch(error => {
+                                    console.error('❌ 스캔 비디오 재생 실패:', error);
+                                    // YouTube 폴백
+                                    setTimeout(() => {
+                                        loadScannerYouTube(arData);
+                                    }, 1000);
+                                });
+                            }
+                        }, 100); // 100ms 지연 후 재생 시도
                     };
                     
                     // 비디오 재생 시작 이벤트
                     scannerOverlayVideo.onplay = () => {
                         console.log('✅ 스캔 비디오 재생 시작됨');
-                        scannerArStatus.textContent = '🎬 AR 영상 재생 중';
                     };
                     
                     // 비디오 로드 실패 시
                     scannerOverlayVideo.onerror = (e) => {
                         console.error('❌ 스캔 비디오 로드 실패:', e);
-                        scannerArStatus.textContent = '❌ 비디오 로드 실패 - YouTube로 전환';
                         // YouTube 폴백
                         setTimeout(() => {
                             loadScannerYouTube(arData);
@@ -3920,7 +3905,6 @@
                     
                 } catch (error) {
                     console.error('❌ Base64 비디오 변환 실패:', error);
-                    scannerArStatus.textContent = '❌ 비디오 변환 실패 - YouTube로 전환';
                     // YouTube 폴백
                     setTimeout(() => {
                         loadScannerYouTube(arData);
@@ -3929,7 +3913,6 @@
                 
             } else {
                 console.error('❌ 비디오 데이터가 없습니다');
-                scannerArStatus.textContent = '❌ 비디오 데이터 없음 - YouTube로 전환';
                 // YouTube 폴백
                 setTimeout(() => {
                     loadScannerYouTube(arData);
