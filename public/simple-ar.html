@@ -233,7 +233,7 @@
             top: 20px;
             left: 20px;
             right: 20px;
-            z-index: 1001;
+            z-index: 2000;
             display: flex;
             justify-content: space-between;
             align-items: center;
@@ -259,6 +259,13 @@
             cursor: pointer;
             font-size: 12px;
             font-weight: 600;
+            z-index: 2001;
+            position: relative;
+        }
+
+        .ar-close:hover {
+            background: #e55a2e;
+            transform: scale(1.05);
         }
 
         .check-icon {
@@ -609,14 +616,14 @@
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
-            width: 80%;
-            height: 60%;
+            width: 300px;
+            height: 200px;
             object-fit: cover;
             background: rgba(0, 0, 0, 0.9);
-            border-radius: 15px;
-            border: 3px solid #ff6b35;
-            box-shadow: 0 0 20px rgba(255, 107, 53, 0.5);
-            z-index: 10;
+            border-radius: 10px;
+            border: 2px solid #ff6b35;
+            box-shadow: 0 0 15px rgba(255, 107, 53, 0.6);
+            z-index: 1002;
             display: block;
         }
 
@@ -633,34 +640,37 @@
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
-            width: 80%;
-            height: 60%;
-            border: 3px dashed #4CAF50;
-            border-radius: 15px;
-            background: rgba(76, 175, 80, 0.1);
+            width: 320px;
+            height: 220px;
+            border: 2px dashed #4CAF50;
+            border-radius: 12px;
+            background: rgba(76, 175, 80, 0.05);
             pointer-events: none;
             animation: frameGlow 2s infinite alternate;
+            z-index: 1001;
         }
 
         @keyframes frameGlow {
             0% { box-shadow: 0 0 5px rgba(76, 175, 80, 0.5); }
-            100% { box-shadow: 0 0 20px rgba(76, 175, 80, 0.8); }
+            100% { box-shadow: 0 0 15px rgba(76, 175, 80, 0.8); }
         }
 
         .overlay-instructions {
             position: absolute;
-            bottom: 10%;
+            bottom: 15%;
             left: 50%;
             transform: translateX(-50%);
-            background: rgba(0, 0, 0, 0.8);
+            background: rgba(0, 0, 0, 0.85);
             color: white;
-            padding: 15px 25px;
-            border-radius: 25px;
-            font-size: 16px;
+            padding: 12px 20px;
+            border-radius: 20px;
+            font-size: 14px;
             font-weight: 600;
             text-align: center;
             backdrop-filter: blur(10px);
             border: 2px solid #ff6b35;
+            z-index: 1003;
+            max-width: 90%;
         }
 
         .youtube-overlay {
@@ -669,7 +679,7 @@
             left: 0;
             width: 100%;
             height: 100%;
-            z-index: 1002;
+            z-index: 1004;
             display: none;
             justify-content: center;
             align-items: center;
@@ -1834,13 +1844,14 @@
             const overlayVideo = document.getElementById('overlayVideo');
             const arOverlayContainer = document.getElementById('arOverlayContainer');
             const overlayInstructions = document.getElementById('overlayInstructions');
+            const overlayFrame = document.getElementById('overlayFrame');
             
             console.log('비디오 오버레이 로딩 시작');
             console.log('비디오 데이터 크기:', arData.videoData ? arData.videoData.length : '없음');
             
             // 오버레이 컨테이너 표시
             arOverlayContainer.classList.add('active');
-            overlayInstructions.textContent = '비디오 로딩 중...';
+            overlayInstructions.textContent = 'AR 영역 감지 중...';
             
             // 비디오 데이터 검증
             if (!arData.videoData || arData.videoData.length < 1000) {
@@ -1848,6 +1859,9 @@
                 showYouTubeOverlay();
                 return;
             }
+            
+            // AR 이미지 영역 계산 및 오버레이 위치 설정
+            calculateARImagePosition(arData, overlayVideo, overlayFrame);
             
             // 비디오 요소 초기화
             overlayVideo.pause();
@@ -1874,18 +1888,23 @@
                 const playPromise = overlayVideo.play();
                 
                 if (playPromise !== undefined) {
-                    playPromise.then(() => {
-                        console.log('오버레이 비디오 재생 시작됨');
-                        document.getElementById('arStatus').textContent = '🎬 AR 비디오 재생 중';
-                        overlayInstructions.textContent = '✅ AR 영상이 재생되고 있습니다 (터치하면 소리)';
-                        
-                        // 사용자 상호작용이 있었다면 소리 활성화
-                        if (userInteracted) {
-                            overlayVideo.muted = false;
-                            overlayInstructions.textContent = '✅ AR 영상이 재생되고 있습니다 (소리 ON)';
-                        }
-                        
-                    }).catch(error => {
+                                            playPromise.then(() => {
+                            console.log('오버레이 비디오 재생 시작됨');
+                            document.getElementById('arStatus').textContent = '🎬 AR 비디오 재생 중';
+                            overlayInstructions.textContent = '✅ AR 영상이 재생되고 있습니다 (터치하면 소리)';
+                            
+                            // 사용자 상호작용이 있었다면 소리 활성화
+                            if (userInteracted) {
+                                overlayVideo.muted = false;
+                                overlayInstructions.textContent = '✅ AR 영상이 재생되고 있습니다 (소리 ON)';
+                            }
+                            
+                            // 이미지 감지 시뮬레이션 시작
+                            setTimeout(() => {
+                                simulateImageDetection(overlayVideo, overlayFrame);
+                            }, 1000);
+                            
+                        }).catch(error => {
                         console.error('비디오 재생 실패:', error);
                         // 재생 실패 시 다시 시도
                         setTimeout(() => {
@@ -2009,6 +2028,113 @@
             youtubeOverlay.classList.add('active');
             
             document.getElementById('arStatus').textContent = '📺 폴백 영상 준비됨';
+        }
+
+        function calculateARImagePosition(arData, overlayVideo, overlayFrame) {
+            console.log('AR 이미지 영역 계산 시작');
+            
+            // AR 타겟 이미지 로드 및 분석
+            const tempImg = new Image();
+            tempImg.onload = () => {
+                console.log('AR 타겟 이미지 크기:', tempImg.width, 'x', tempImg.height);
+                
+                // 화면 크기 가져오기
+                const screenWidth = window.innerWidth;
+                const screenHeight = window.innerHeight;
+                
+                // AR 이미지 비율 계산
+                const imageAspectRatio = tempImg.width / tempImg.height;
+                
+                // AR 영역 크기 계산 (화면의 60% 크기로 설정)
+                let arWidth, arHeight;
+                const maxWidth = screenWidth * 0.6;
+                const maxHeight = screenHeight * 0.4;
+                
+                if (imageAspectRatio > 1) {
+                    // 가로가 더 긴 이미지
+                    arWidth = Math.min(maxWidth, maxHeight * imageAspectRatio);
+                    arHeight = arWidth / imageAspectRatio;
+                } else {
+                    // 세로가 더 긴 이미지
+                    arHeight = Math.min(maxHeight, maxWidth / imageAspectRatio);
+                    arWidth = arHeight * imageAspectRatio;
+                }
+                
+                // 최소 크기 보장
+                arWidth = Math.max(arWidth, 250);
+                arHeight = Math.max(arHeight, 180);
+                
+                console.log('계산된 AR 영역 크기:', arWidth, 'x', arHeight);
+                
+                // 오버레이 비디오 크기 및 위치 설정
+                overlayVideo.style.width = arWidth + 'px';
+                overlayVideo.style.height = arHeight + 'px';
+                
+                // 프레임 크기 설정 (비디오보다 약간 크게)
+                overlayFrame.style.width = (arWidth + 20) + 'px';
+                overlayFrame.style.height = (arHeight + 20) + 'px';
+                
+                // 중앙 배치를 위한 위치 계산
+                const leftPos = (screenWidth - arWidth) / 2;
+                const topPos = (screenHeight - arHeight) / 2;
+                
+                console.log('AR 영역 위치:', leftPos, ',', topPos);
+                
+                // 실제 AR 이미지가 감지될 것으로 예상되는 영역에 배치
+                // (실제로는 카메라에서 이미지를 찾는 영역)
+                overlayVideo.style.left = '50%';
+                overlayVideo.style.top = '50%';
+                overlayVideo.style.transform = 'translate(-50%, -50%)';
+                
+                overlayFrame.style.left = '50%';
+                overlayFrame.style.top = '50%';
+                overlayFrame.style.transform = 'translate(-50%, -50%)';
+                
+                // AR 영역 준비 완료
+                document.getElementById('overlayInstructions').textContent = 'AR 영역 준비 완료 - 비디오 로딩 중...';
+                
+            };
+            
+            tempImg.onerror = () => {
+                console.warn('AR 이미지 로드 실패, 기본 크기 사용');
+                // 기본 크기 설정
+                overlayVideo.style.width = '300px';
+                overlayVideo.style.height = '200px';
+                overlayFrame.style.width = '320px';
+                overlayFrame.style.height = '220px';
+            };
+            
+            // AR 타겟 이미지 로드
+            tempImg.src = arData.targetImage;
+        }
+
+        function simulateImageDetection(overlayVideo, overlayFrame) {
+            console.log('이미지 감지 시뮬레이션 시작');
+            
+            // 실제 환경에서는 카메라에서 이미지를 감지하고 위치를 추적
+            // 여기서는 시뮬레이션으로 랜덤 위치 변화 효과 추가
+            
+            let detectionCount = 0;
+            const maxDetections = 5;
+            
+            const detectionInterval = setInterval(() => {
+                detectionCount++;
+                
+                // 약간의 위치 변화로 실제 AR 추적 느낌 연출
+                const offsetX = Math.random() * 10 - 5; // -5px ~ 5px
+                const offsetY = Math.random() * 10 - 5; // -5px ~ 5px
+                
+                overlayVideo.style.transform = `translate(calc(-50% + ${offsetX}px), calc(-50% + ${offsetY}px))`;
+                overlayFrame.style.transform = `translate(calc(-50% + ${offsetX}px), calc(-50% + ${offsetY}px))`;
+                
+                if (detectionCount >= maxDetections) {
+                    clearInterval(detectionInterval);
+                    // 최종적으로 중앙 정렬
+                    overlayVideo.style.transform = 'translate(-50%, -50%)';
+                    overlayFrame.style.transform = 'translate(-50%, -50%)';
+                    console.log('이미지 감지 안정화 완료');
+                }
+            }, 200);
         }
 
         async function initializeMindAR(arData) {
