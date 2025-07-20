@@ -1129,6 +1129,93 @@
                 <button class="scan-close-btn" onclick="closeFullscreenScan()">✕ 닫기</button>
             </div>
             
+            <!-- 전체 화면 AR 비디오 오버레이 -->
+            <div class="fullscreen-ar-overlay" id="fullscreenArOverlay" style="
+                position: absolute;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                z-index: 1001;
+                display: none;
+                pointer-events: none;
+            ">
+                <!-- AR 비디오 -->
+                <video id="fullscreenOverlayVideo" class="fullscreen-overlay-video" loop muted playsinline style="
+                    position: absolute;
+                    border: 3px solid #ff6b35;
+                    border-radius: 12px;
+                    box-shadow: 0 0 25px rgba(255, 107, 53, 0.8);
+                    background: rgba(0, 0, 0, 0.9);
+                    z-index: 1002;
+                    display: none;
+                "></video>
+                
+                <!-- AR 프레임 -->
+                <div id="fullscreenOverlayFrame" class="fullscreen-overlay-frame" style="
+                    position: absolute;
+                    border: 3px dashed #4CAF50;
+                    border-radius: 15px;
+                    background: rgba(76, 175, 80, 0.1);
+                    pointer-events: none;
+                    animation: frameGlow 2s infinite alternate;
+                    z-index: 1001;
+                    display: none;
+                "></div>
+                
+                <!-- AR 상태 표시 -->
+                <div id="fullscreenArStatus" class="fullscreen-ar-status" style="
+                    position: absolute;
+                    top: 20px;
+                    left: 50%;
+                    transform: translateX(-50%);
+                    background: rgba(0, 0, 0, 0.9);
+                    color: white;
+                    padding: 10px 20px;
+                    border-radius: 20px;
+                    font-size: 14px;
+                    font-weight: 600;
+                    text-align: center;
+                    backdrop-filter: blur(10px);
+                    border: 2px solid #ff6b35;
+                    z-index: 1003;
+                    display: none;
+                "></div>
+                
+                <!-- AR 컨트롤 -->
+                <div id="fullscreenArControls" class="fullscreen-ar-controls" style="
+                    position: absolute;
+                    bottom: 20px;
+                    left: 50%;
+                    transform: translateX(-50%);
+                    display: flex;
+                    gap: 10px;
+                    z-index: 1003;
+                    display: none;
+                ">
+                    <button onclick="toggleFullscreenVideoSound()" class="fullscreen-ar-btn" style="
+                        background: #4CAF50;
+                        color: white;
+                        border: none;
+                        padding: 8px 16px;
+                        border-radius: 20px;
+                        cursor: pointer;
+                        font-size: 12px;
+                        font-weight: 600;
+                    ">🔊 소리</button>
+                    <button onclick="closeFullscreenAR()" class="fullscreen-ar-btn" style="
+                        background: #ff6b35;
+                        color: white;
+                        border: none;
+                        padding: 8px 16px;
+                        border-radius: 20px;
+                        cursor: pointer;
+                        font-size: 12px;
+                        font-weight: 600;
+                    ">✕ 닫기</button>
+                </div>
+            </div>
+            
             <!-- 자동 이미지 감지 영역 표시 -->
             <div class="auto-detection-area" id="autoDetectionArea" style="
                 position: absolute;
@@ -2343,8 +2430,7 @@
                 
                 setTimeout(() => {
                     try {
-                        closeFullscreenScan();
-                        loadAndPlayAR(arId);
+                        loadFullscreenAR(arId);
                     } catch (error) {
                         console.error('AR 로딩 오류:', error);
                         scanInstructionsFullscreen.innerHTML = `
@@ -2372,6 +2458,7 @@
 
             let detectionCount = 0;
             const maxDetections = 30; // 30초 동안 시도
+            let currentFullscreenARId = null; // 현재 표시 중인 전체 화면 AR ID
 
             const detectInterval = setInterval(async () => {
                 detectionCount++;
@@ -2439,13 +2526,21 @@
                     `;
 
                     if (bestMatch && bestScore > threshold) {
-                        clearInterval(detectInterval);
-
+                        // 새로운 AR 이미지가 감지되었거나 다른 AR 이미지가 감지된 경우
+                        if (currentFullscreenARId !== bestMatch.id) {
+                            console.log(`🎯 새로운 전체 화면 AR 이미지 감지: ${bestMatch.id} (${Math.round(bestScore * 100)}%)`);
+                            currentFullscreenARId = bestMatch.id;
+                            
+                            // 전체 화면에서 AR 비디오 로드
+                            loadFullscreenAR(bestMatch.id);
+                        }
+                        
+                        // 계속 감지 (이미지가 사라질 수 있으므로)
                         const markerType = bestMatch.hasSpecialMarkers ? '특수 마커' : '일반 이미지';
                         
                         scanInstructionsFullscreen.innerHTML = `
-                            <span style="color: #4CAF50;">🎯 ${markerType} 자동 감지 성공! (${Math.round(bestScore * 100)}%)</span><br>
-                            <span style="opacity: 0.8; color: #2196F3;">화면에서 이미지를 찾았습니다 - AR 영상 로딩 중...</span>
+                            <span style="color: #4CAF50;">🎯 ${markerType} AR 이미지 감지됨 (${Math.round(bestScore * 100)}%)</span><br>
+                            <span style="opacity: 0.8; color: #2196F3;">AR 영상이 재생되고 있습니다</span>
                         `;
 
                         // 자동 감지 영역 성공 표시
@@ -2453,22 +2548,34 @@
                         autoDetectionArea.style.background = 'rgba(76, 175, 80, 0.3)';
                         autoDetectionArea.style.animation = 'none';
                         autoDetectionArea.innerHTML = `
-                            ✅ 이미지 감지 성공!<br>
-                            <span style="font-size: 14px; opacity: 0.8;">AR 뷰어로 전환 중...</span>
+                            ✅ AR 이미지 감지됨<br>
+                            <span style="font-size: 14px; opacity: 0.8;">영상 재생 중...</span>
                         `;
-
-                        setTimeout(() => {
-                            try {
-                                closeFullscreenScan();
-                                setTimeout(() => {
-                                    loadAndPlayAR(bestMatch.id);
-                                }, 500);
-                            } catch (error) {
-                                console.error('AR 로딩 오류 (자동 감지):', error);
-                                showFullscreenScanError(error);
-                            }
-                        }, 2000);
-
+                        
+                    } else {
+                        // AR 이미지가 감지되지 않은 경우
+                        if (currentFullscreenARId !== null) {
+                            console.log('❌ 전체 화면 AR 이미지가 사라짐');
+                            currentFullscreenARId = null;
+                            hideFullscreenAR();
+                        }
+                        
+                        // 계속 인식 시도
+                        scanInstructionsFullscreen.innerHTML = `
+                            <span style="color: #4CAF50;">🔍 자동 이미지 검색 중...</span><br>
+                            <span style="opacity: 0.8; font-size: 14px;">최고 유사도: ${Math.round(bestScore * 100)}%</span>
+                        `;
+                        
+                        // 자동 감지 영역 원래 상태로 복원
+                        autoDetectionArea.style.border = '2px dashed #4CAF50';
+                        autoDetectionArea.style.background = 'rgba(76, 175, 80, 0.1)';
+                        autoDetectionArea.style.animation = 'pulse 2s infinite';
+                        autoDetectionArea.innerHTML = `
+                            🔍 자동 이미지 감지 영역<br>
+                            <span style="font-size: 14px; opacity: 0.8;">감지도: ${Math.round(bestScore * 100)}%</span><br>
+                            <span style="font-size: 12px; opacity: 0.6;">진행률: ${progress}%</span><br>
+                            <span style="font-size: 10px; opacity: 0.5;">검색된 이미지: ${arKeys.length}개</span>
+                        `;
                     } else if (detectionCount >= maxDetections) {
                         clearInterval(detectInterval);
 
@@ -2481,8 +2588,7 @@
                             
                             setTimeout(() => {
                                 try {
-                                    closeFullscreenScan();
-                                    loadAndPlayAR(bestMatch.id);
+                                    loadFullscreenAR(bestMatch.id);
                                 } catch (error) {
                                     console.error('AR 로딩 오류 (부분 매칭):', error);
                                     showFullscreenScanError(error);
@@ -2500,8 +2606,7 @@
                             
                             setTimeout(() => {
                                 try {
-                                    closeFullscreenScan();
-                                    loadAndPlayAR(arId);
+                                    loadFullscreenAR(arId);
                                 } catch (error) {
                                     console.error('AR 로딩 오류 (최신 이미지):', error);
                                     showFullscreenScanError(error);
@@ -2534,8 +2639,7 @@
                         
                         setTimeout(() => {
                             try {
-                                closeFullscreenScan();
-                                loadAndPlayAR(arId);
+                                loadFullscreenAR(arId);
                             } catch (loadError) {
                                 console.error('AR 로딩 오류 (오류 복구):', loadError);
                                 showFullscreenScanError(loadError);
@@ -3544,72 +3648,8 @@
             
             console.log('🎯 AR 로딩 시작:', arId, arData);
             
-            // 스캔 화면 숨기고 AR 뷰어 표시
-            document.getElementById('scannerContainer').style.display = 'none';
-            const arViewer = document.getElementById('arViewer');
-            arViewer.style.display = 'block';
-            arViewer.classList.add('active');
-            
-            document.getElementById('arStatus').textContent = 'AR 카메라 초기화 중...';
-            
-            // 카메라 스트림을 배경으로 설정
-            const scannerVideo = document.getElementById('scannerVideo');
-            const cameraBackground = document.getElementById('cameraBackground');
-            const previewVideo = document.getElementById('previewVideo');
-            
-            if (scannerVideo && scannerVideo.srcObject) {
-                console.log('📹 카메라 스트림 설정 중...');
-                // 배경 카메라 설정
-                cameraBackground.srcObject = scannerVideo.srcObject;
-                // 미리보기도 설정
-                previewVideo.srcObject = scannerVideo.srcObject;
-                document.getElementById('cameraPreview').classList.remove('hidden');
-                
-                // 카메라 스트림이 로드되었는지 확인
-                cameraBackground.onloadedmetadata = () => {
-                    console.log('✅ 카메라 배경 로드 완료');
-                    cameraBackground.play().then(() => {
-                        console.log('✅ 카메라 배경 재생 시작');
-                        document.getElementById('arStatus').textContent = '🎯 카메라 준비 완료 - 이미지 인식 중...';
-                        
-                        // AR 오버레이 컨테이너 활성화
-                        const arOverlayContainer = document.getElementById('arOverlayContainer');
-                        arOverlayContainer.style.display = 'block';
-                        arOverlayContainer.classList.add('active');
-                        
-                        // 이미지 인식 시뮬레이션 시작
-                        setTimeout(() => {
-                            startImageDetectionOverlay(arData);
-                        }, 1000);
-                    }).catch(error => {
-                        console.error('❌ 카메라 배경 재생 실패:', error);
-                        document.getElementById('arStatus').textContent = '❌ 카메라 재생 실패';
-                    });
-                };
-                
-                cameraBackground.onerror = (error) => {
-                    console.error('❌ 카메라 배경 로드 오류:', error);
-                    document.getElementById('arStatus').textContent = '❌ 카메라 로드 실패';
-                };
-            } else {
-                console.warn('⚠️ 카메라 스트림이 없음, 기본 배경으로 실행');
-                document.getElementById('arStatus').textContent = '⚠️ 카메라 없음 - 기본 모드로 실행';
-                
-                // AR 오버레이 컨테이너 활성화
-                const arOverlayContainer = document.getElementById('arOverlayContainer');
-                arOverlayContainer.style.display = 'block';
-                arOverlayContainer.classList.add('active');
-                
-                // 이미지 인식 시뮬레이션 시작
-                setTimeout(() => {
-                    startImageDetectionOverlay(arData);
-                }, 1000);
-            }
-            
-            if (scanTimeout) {
-                clearTimeout(scanTimeout);
-                scanTimeout = null;
-            }
+            // 스캔 화면에서 AR 비디오 로드 (같은 화면에서 처리)
+            loadScannerAR(arId);
         }
 
         // 스캔 화면에서 AR 비디오 로드 (새로운 함수)
@@ -3802,6 +3842,198 @@
         function closeScannerAR() {
             hideScannerAR();
             console.log('✕ 스캔 AR 닫기');
+        }
+
+        // 전체 화면 AR 비디오 로드
+        function loadFullscreenAR(arId) {
+            const arDataJson = localStorage.getItem('arData_' + arId);
+            if (!arDataJson) {
+                console.error('AR 데이터를 찾을 수 없습니다:', arId);
+                return;
+            }
+            
+            const arData = JSON.parse(arDataJson);
+            console.log('🎯 전체 화면 AR 로딩 시작:', arId, arData);
+            
+            // 전체 화면 AR 오버레이 표시
+            const fullscreenArOverlay = document.getElementById('fullscreenArOverlay');
+            const fullscreenArStatus = document.getElementById('fullscreenArStatus');
+            const fullscreenArControls = document.getElementById('fullscreenArControls');
+            
+            fullscreenArOverlay.style.display = 'block';
+            fullscreenArStatus.style.display = 'block';
+            fullscreenArControls.style.display = 'flex';
+            fullscreenArStatus.textContent = '🎬 AR 영상 로딩 중...';
+            
+            // AR 이미지 영역 계산 및 비디오 위치 설정
+            calculateFullscreenARPosition(arData);
+            
+            // 비디오 로드
+            if (arData.youtubeUrl) {
+                console.log('📺 YouTube URL 발견, YouTube 오버레이 사용');
+                loadFullscreenYouTube(arData);
+            } else if (arData.videoData) {
+                console.log('🎬 실제 비디오 데이터 사용');
+                loadFullscreenVideo(arData);
+            } else {
+                console.log('⚠️ 비디오 데이터 없음, YouTube 폴백 사용');
+                loadFullscreenYouTube(arData);
+            }
+        }
+
+        // 전체 화면 AR 숨기기
+        function hideFullscreenAR() {
+            const fullscreenArOverlay = document.getElementById('fullscreenArOverlay');
+            const fullscreenArStatus = document.getElementById('fullscreenArStatus');
+            const fullscreenArControls = document.getElementById('fullscreenArControls');
+            const fullscreenOverlayVideo = document.getElementById('fullscreenOverlayVideo');
+            const fullscreenOverlayFrame = document.getElementById('fullscreenOverlayFrame');
+            
+            fullscreenArOverlay.style.display = 'none';
+            fullscreenArStatus.style.display = 'none';
+            fullscreenArControls.style.display = 'none';
+            fullscreenOverlayVideo.style.display = 'none';
+            fullscreenOverlayFrame.style.display = 'none';
+            
+            // 비디오 정리
+            if (fullscreenOverlayVideo.src) {
+                fullscreenOverlayVideo.pause();
+                fullscreenOverlayVideo.src = '';
+            }
+            
+            console.log('🔇 전체 화면 AR 숨김');
+        }
+
+        // 전체 화면 AR 위치 계산
+        function calculateFullscreenARPosition(arData) {
+            const fullscreenOverlayVideo = document.getElementById('fullscreenOverlayVideo');
+            const fullscreenOverlayFrame = document.getElementById('fullscreenOverlayFrame');
+            const fullscreenScanner = document.getElementById('fullscreenScanner');
+            
+            // 전체 화면 스캐너 크기
+            const containerWidth = fullscreenScanner.offsetWidth;
+            const containerHeight = fullscreenScanner.offsetHeight;
+            
+            // AR 비디오 크기 (전체 화면에 맞춤)
+            const videoWidth = 400;
+            const videoHeight = 300;
+            
+            // 중앙 위치 계산
+            const left = (containerWidth - videoWidth) / 2;
+            const top = (containerHeight - videoHeight) / 2;
+            
+            // 비디오 위치 설정
+            fullscreenOverlayVideo.style.left = left + 'px';
+            fullscreenOverlayVideo.style.top = top + 'px';
+            fullscreenOverlayVideo.style.width = videoWidth + 'px';
+            fullscreenOverlayVideo.style.height = videoHeight + 'px';
+            fullscreenOverlayVideo.style.display = 'block';
+            
+            // 프레임 위치 설정 (비디오보다 약간 크게)
+            const frameMargin = 15;
+            fullscreenOverlayFrame.style.left = (left - frameMargin) + 'px';
+            fullscreenOverlayFrame.style.top = (top - frameMargin) + 'px';
+            fullscreenOverlayFrame.style.width = (videoWidth + frameMargin * 2) + 'px';
+            fullscreenOverlayFrame.style.height = (videoHeight + frameMargin * 2) + 'px';
+            fullscreenOverlayFrame.style.display = 'block';
+            
+            console.log('📍 전체 화면 AR 위치 설정:', { left, top, width: videoWidth, height: videoHeight });
+        }
+
+        // 전체 화면 YouTube 로드
+        function loadFullscreenYouTube(arData) {
+            const fullscreenOverlayVideo = document.getElementById('fullscreenOverlayVideo');
+            const fullscreenArStatus = document.getElementById('fullscreenArStatus');
+            
+            // YouTube URL 설정
+            const youtubeUrl = arData.youtubeUrl || 'https://www.youtube.com/watch?v=MX_UceuxveA';
+            const videoId = youtubeUrl.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([^&\n?#]+)/)?.[1] || 'MX_UceuxveA';
+            const embedUrl = `https://www.youtube.com/embed/${videoId}?autoplay=1&mute=1&loop=1&playlist=${videoId}&rel=0&modestbranding=1&showinfo=0&controls=1`;
+            
+            // iframe 생성
+            const iframe = document.createElement('iframe');
+            iframe.src = embedUrl;
+            iframe.style.width = '100%';
+            iframe.style.height = '100%';
+            iframe.style.border = 'none';
+            iframe.style.borderRadius = '12px';
+            iframe.allow = 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share';
+            iframe.allowFullscreen = true;
+            
+            // 기존 내용 제거하고 iframe 추가
+            fullscreenOverlayVideo.innerHTML = '';
+            fullscreenOverlayVideo.appendChild(iframe);
+            
+            fullscreenArStatus.textContent = '📺 YouTube 영상 재생 중';
+            console.log('📺 전체 화면 YouTube 로드 완료:', videoId);
+        }
+
+        // 전체 화면 비디오 로드
+        function loadFullscreenVideo(arData) {
+            const fullscreenOverlayVideo = document.getElementById('fullscreenOverlayVideo');
+            const fullscreenArStatus = document.getElementById('fullscreenArStatus');
+            
+            // 비디오 요소 초기화
+            fullscreenOverlayVideo.pause();
+            fullscreenOverlayVideo.currentTime = 0;
+            fullscreenOverlayVideo.src = '';
+            fullscreenOverlayVideo.innerHTML = '';
+            
+            // 비디오 속성 설정
+            fullscreenOverlayVideo.setAttribute('autoplay', 'true');
+            fullscreenOverlayVideo.setAttribute('loop', 'true');
+            fullscreenOverlayVideo.setAttribute('muted', 'true');
+            fullscreenOverlayVideo.setAttribute('playsinline', 'true');
+            
+            // 비디오 소스 설정
+            fullscreenOverlayVideo.src = arData.videoData;
+            
+            // 비디오 로드 완료 이벤트
+            fullscreenOverlayVideo.onloadeddata = () => {
+                console.log('🎬 전체 화면 비디오 데이터 로드 완료');
+                fullscreenArStatus.textContent = '🎬 AR 영상 재생 중';
+                
+                // 비디오 재생 시도
+                fullscreenOverlayVideo.play().then(() => {
+                    console.log('✅ 전체 화면 비디오 재생 시작');
+                }).catch(error => {
+                    console.error('❌ 전체 화면 비디오 재생 실패:', error);
+                    fullscreenArStatus.textContent = '❌ 비디오 재생 실패';
+                });
+            };
+            
+            // 비디오 로드 실패 시
+            fullscreenOverlayVideo.onerror = (e) => {
+                console.error('❌ 전체 화면 비디오 로드 실패:', e);
+                fullscreenArStatus.textContent = '❌ 비디오 로드 실패';
+                // YouTube 폴백
+                loadFullscreenYouTube(arData);
+            };
+        }
+
+        // 전체 화면 비디오 소리 토글
+        function toggleFullscreenVideoSound() {
+            const fullscreenOverlayVideo = document.getElementById('fullscreenOverlayVideo');
+            const fullscreenArStatus = document.getElementById('fullscreenArStatus');
+            
+            if (fullscreenOverlayVideo.muted) {
+                fullscreenOverlayVideo.muted = false;
+                fullscreenArStatus.textContent = '🔊 소리 ON';
+            } else {
+                fullscreenOverlayVideo.muted = true;
+                fullscreenArStatus.textContent = '🔇 소리 OFF';
+            }
+            
+            // 3초 후 원래 메시지로 복원
+            setTimeout(() => {
+                fullscreenArStatus.textContent = '🎬 AR 영상 재생 중';
+            }, 3000);
+        }
+
+        // 전체 화면 AR 닫기
+        function closeFullscreenAR() {
+            hideFullscreenAR();
+            console.log('✕ 전체 화면 AR 닫기');
         }
 
         function startImageDetectionOverlay(arData) {
