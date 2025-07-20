@@ -979,6 +979,26 @@ button {
     pointer-events: auto !important;
     cursor: pointer !important;
 }
+
+/* AR Scene 숨김 상태 */
+#ar-scene {
+    display: none;
+}
+
+/* AR Scene 활성화 시 */
+#ar-scene[style*="display: block"] {
+    display: block !important;
+}
+
+/* AR 뷰어 숨김 상태 */
+.ar-viewer {
+    display: none;
+}
+
+/* AR 뷰어 활성화 시 */
+.ar-viewer.active {
+    display: block;
+}
 }
 
 /* iOS Safari 최적화 */

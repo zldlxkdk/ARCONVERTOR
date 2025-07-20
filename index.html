@@ -107,12 +107,12 @@
             <button class="ar-close" onclick="closeAR()">✕</button>
         </div>
         <div class="ar-scene-container">
-            <a-scene id="ar-scene" mindar-image="imageTargetSrc: ./targets/target-image.mind;" color-space="sRGB" renderer="colorManagement: true, physicallyCorrectLights" vr-mode-ui="enabled: false" device-orientation-permission-ui="enabled: false">
+            <a-scene id="ar-scene" mindar-image="imageTargetSrc: ./targets/target-image.mind;" color-space="sRGB" renderer="colorManagement: true, physicallyCorrectLights" vr-mode-ui="enabled: false" device-orientation-permission-ui="enabled: false" embedded>
                 <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
                 <a-assets>
-                    <video id="arVideo" src="" preload="auto" loop crossOrigin="anonymous" playsinline webkit-playsinline></video>
+                    <video id="arVideo" src="" preload="auto" loop crossOrigin="anonymous" playsinline webkit-playsinline muted></video>
                 </a-assets>
-                <a-image id="arImage" src="#arVideo" position="0 0 0" width="1" height="0.5625"></a-image>
+                <a-image id="arImage" src="#arVideo" position="0 0 0" width="1" height="0.5625" visible="false"></a-image>
             </a-scene>
         </div>
     </div>

@@ -64,6 +64,12 @@
             // 모바일 최적화 초기화
             initializeMobileOptimizations();
             
+            // AR Scene 초기화 지연 (필요할 때만 로드)
+            const arScene = document.getElementById('ar-scene');
+            if (arScene) {
+                arScene.style.display = 'none';
+            }
+            
             console.log('✅ AR 이미지 생성기 초기화 완료');
         });
 
@@ -77,8 +83,15 @@
         function closeAR() {
             console.log('❌ AR 뷰어 닫기');
             const arViewer = document.getElementById('arViewer');
+            const arScene = document.getElementById('ar-scene');
+            
             if (arViewer) {
                 arViewer.classList.remove('active');
+            }
+            
+            // AR Scene 숨기기
+            if (arScene) {
+                arScene.style.display = 'none';
             }
         }
 
@@ -99,6 +112,22 @@
             if (scanTimeout) {
                 clearTimeout(scanTimeout);
                 scanTimeout = null;
+            }
+        }
+
+        // AR 뷰어 열기 함수
+        function openARViewer() {
+            console.log('🎯 AR 뷰어 열기');
+            const arViewer = document.getElementById('arViewer');
+            const arScene = document.getElementById('ar-scene');
+            
+            if (arViewer) {
+                arViewer.classList.add('active');
+            }
+            
+            // AR Scene 활성화
+            if (arScene) {
+                arScene.style.display = 'block';
             }
         }
 
@@ -5590,31 +5619,7 @@
             }
         }
 
-        // 페이지 로드 시 모바일 최적화 초기화
-        document.addEventListener('DOMContentLoaded', function() {
-            initializeMobileOptimizations();
-            
-            // 모바일 환경에서 추가적인 초기화
-            const isMobile = /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-            if (isMobile) {
-                // 모바일에서 뷰포트 설정 확인
-                const viewport = document.querySelector('meta[name="viewport"]');
-                if (viewport) {
-                    viewport.setAttribute('content', 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no');
-                }
-                
-                console.log('📱 모바일 환경 초기화 완료');
-            }
-        });
+        // 중복된 초기화 제거 - 이미 DOMContentLoaded에서 처리됨
 
-        // 모바일에서 더 나은 성능을 위한 추가 최적화
-        if ('serviceWorker' in navigator) {
-            window.addEventListener('load', function() {
-                navigator.serviceWorker.register('/sw.js').then(function(registration) {
-                    console.log('📱 Service Worker 등록 성공:', registration.scope);
-                }).catch(function(error) {
-                    console.log('📱 Service Worker 등록 실패:', error);
-                });
-            });
-        }
+        // Service Worker 등록 제거 - 불필요한 404 오류 방지
     
