@@ -2389,7 +2389,7 @@
             let detectionCount = 0;
             const maxDetections = 30; // 30초 동안 시도
 
-            const detectInterval = setInterval(() => {
+            const detectInterval = setInterval(async () => {
                 detectionCount++;
 
                 try {
@@ -2401,18 +2401,21 @@
                     let bestMatch = null;
                     let bestScore = 0;
 
-                    arKeys.forEach(key => {
+                    // 모든 AR 이미지와 비교
+                    for (const key of arKeys) {
                         const arData = JSON.parse(localStorage.getItem(key));
                         
-                        let similarity;
+                        let similarity = 0;
                         
                         // 특수 마커가 있는 경우 고급 인식 사용
                         if (arData.hasSpecialMarkers) {
-                            similarity = analyzeSpecialMarkers(fullFrame, arData.targetImage);
+                            similarity = await analyzeSpecialMarkers(fullFrame, arData.targetImage);
                         } else {
-                            // 기본 이미지 비교 (전체 화면)
-                            similarity = compareImages(fullFrame, arData.targetImage);
+                            // 기본 이미지 비교 (전체 화면) - Promise 기반
+                            similarity = await compareImages(fullFrame, arData.targetImage);
                         }
+
+                        console.log(`🔍 ${key}: 유사도 ${Math.round(similarity * 100)}%`);
 
                         if (similarity > bestScore) {
                             bestScore = similarity;
@@ -2423,9 +2426,15 @@
                                 hasSpecialMarkers: arData.hasSpecialMarkers || false
                             };
                         }
-                    });
+                    }
 
                     console.log(`🔍 전체 화면 자동 감지 ${detectionCount}: 최고 유사도 ${Math.round(bestScore * 100)}%`);
+                    console.log(`📊 감지 상세 정보:`, {
+                        검색된_이미지_수: arKeys.length,
+                        최고_매칭_이미지: bestMatch ? bestMatch.id : '없음',
+                        임계값: threshold,
+                        통과여부: bestMatch && bestScore > threshold ? '성공' : '실패'
+                    });
 
                     // 진행률 표시
                     const progress = Math.round((detectionCount / maxDetections) * 100);
@@ -2435,11 +2444,12 @@
                     autoDetectionArea.innerHTML = `
                         🔍 자동 이미지 감지 영역<br>
                         <span style="font-size: 14px; opacity: 0.8;">감지도: ${Math.round(bestScore * 100)}%</span><br>
-                        <span style="font-size: 12px; opacity: 0.6;">진행률: ${progress}%</span>
+                        <span style="font-size: 12px; opacity: 0.6;">진행률: ${progress}%</span><br>
+                        <span style="font-size: 10px; opacity: 0.5;">검색된 이미지: ${arKeys.length}개</span>
                     `;
 
-                    // 임계값 적용 (전체 화면 검색이므로 더 낮은 임계값)
-                    const threshold = bestMatch && bestMatch.hasSpecialMarkers ? 0.6 : 0.5;
+                    // 임계값 적용 (더 낮은 임계값으로 감지 민감도 향상)
+                    const threshold = bestMatch && bestMatch.hasSpecialMarkers ? 0.4 : 0.3;
                     
                     if (bestMatch && bestScore > threshold) {
                         clearInterval(detectInterval);
@@ -2703,40 +2713,107 @@
             }, 100); // 100ms마다 프레임 분석
         }
 
-        function compareImages(img1Data, img2Data) {
-            try {
-                // 간단한 이미지 유사도 계산 (실제로는 더 복잡한 알고리즘 필요)
-                // 여기서는 데이터 길이와 헤더 정보를 비교
-                
-                if (!img1Data || !img2Data) return 0;
-                
-                // 기본 유사도 (데이터 길이 비교)
-                const lengthRatio = Math.min(img1Data.length, img2Data.length) / Math.max(img1Data.length, img2Data.length);
-                
-                // 헤더 정보 비교 (JPEG 헤더 등)
-                const header1 = img1Data.substring(0, 100);
-                const header2 = img2Data.substring(0, 100);
-                
-                let headerSimilarity = 0;
-                for (let i = 0; i < Math.min(header1.length, header2.length); i++) {
-                    if (header1[i] === header2[i]) {
-                        headerSimilarity++;
+        function compareImages(img1DataURL, img2DataURL) {
+            return new Promise((resolve) => {
+                try {
+                    console.log('🔍 실제 이미지 픽셀 비교 시작');
+                    
+                    if (!img1DataURL || !img2DataURL) {
+                        console.warn('이미지 데이터가 없습니다');
+                        resolve(0);
+                        return;
                     }
+                    
+                    const canvas1 = document.createElement('canvas');
+                    const canvas2 = document.createElement('canvas');
+                    const ctx1 = canvas1.getContext('2d');
+                    const ctx2 = canvas2.getContext('2d');
+                    
+                    const img1 = new Image();
+                    const img2 = new Image();
+                    
+                    // 캔버스 크기 설정 (성능을 위해 작게)
+                    canvas1.width = canvas2.width = 200;
+                    canvas1.height = canvas2.height = 200;
+                    
+                    let img1Loaded = false;
+                    let img2Loaded = false;
+                    
+                    img1.onload = () => {
+                        ctx1.drawImage(img1, 0, 0, 200, 200);
+                        img1Loaded = true;
+                        if (img2Loaded) performComparison();
+                    };
+                    
+                    img2.onload = () => {
+                        ctx2.drawImage(img2, 0, 0, 200, 200);
+                        img2Loaded = true;
+                        if (img1Loaded) performComparison();
+                    };
+                    
+                    function performComparison() {
+                        try {
+                            const data1 = ctx1.getImageData(0, 0, 200, 200).data;
+                            const data2 = ctx2.getImageData(0, 0, 200, 200).data;
+                            
+                            let matchingPixels = 0;
+                            let totalPixels = 0;
+                            
+                            // 픽셀 단위 비교 (성능을 위해 샘플링)
+                            for (let i = 0; i < data1.length; i += 16) { // 4픽셀씩 건너뛰기
+                                const r1 = data1[i];
+                                const g1 = data1[i + 1];
+                                const b1 = data1[i + 2];
+                                
+                                const r2 = data2[i];
+                                const g2 = data2[i + 1];
+                                const b2 = data2[i + 2];
+                                
+                                // 색상 차이 계산
+                                const colorDiff = Math.sqrt(
+                                    Math.pow(r1 - r2, 2) + 
+                                    Math.pow(g1 - g2, 2) + 
+                                    Math.pow(b1 - b2, 2)
+                                );
+                                
+                                // 임계값 내에 있으면 매칭으로 간주
+                                if (colorDiff < 100) { // 색상 차이가 100 이하
+                                    matchingPixels++;
+                                }
+                                
+                                totalPixels++;
+                            }
+                            
+                            const similarity = totalPixels > 0 ? matchingPixels / totalPixels : 0;
+                            
+                            console.log(`🔍 이미지 비교 결과: ${Math.round(similarity * 100)}% (${matchingPixels}/${totalPixels} 픽셀)`);
+                            
+                            resolve(similarity);
+                            
+                        } catch (error) {
+                            console.error('픽셀 비교 오류:', error);
+                            resolve(0);
+                        }
+                    }
+                    
+                    img1.onerror = () => {
+                        console.warn('이미지1 로드 실패');
+                        resolve(0);
+                    };
+                    
+                    img2.onerror = () => {
+                        console.warn('이미지2 로드 실패');
+                        resolve(0);
+                    };
+                    
+                    img1.src = img1DataURL;
+                    img2.src = img2DataURL;
+                    
+                } catch (error) {
+                    console.error('이미지 비교 함수 오류:', error);
+                    resolve(0);
                 }
-                headerSimilarity = headerSimilarity / Math.max(header1.length, header2.length);
-                
-                // 랜덤 패턴 매칭 시뮬레이션 (실제 이미지 분석 대신)
-                const randomSimilarity = Math.random() * 0.3 + 0.1; // 10-40% 기본 유사도
-                
-                // 조합된 유사도 계산
-                const combinedScore = (lengthRatio * 0.3) + (headerSimilarity * 0.2) + (randomSimilarity * 0.5);
-                
-                return Math.min(combinedScore, 0.95); // 최대 95%
-                
-            } catch (error) {
-                console.warn('이미지 비교 오류:', error);
-                return Math.random() * 0.4; // 오류 시 랜덤 값
-            }
+            });
         }
 
         function analyzeSpecialMarkers(capturedFrameDataURL, targetImageDataURL) {
