@@ -2125,7 +2125,7 @@
                     scanTimeout = setTimeout(() => {
                         console.log('🔍 전체 화면 자동 이미지 감지 시작');
                         startAutoDetectionFullscreen();
-                    }, 1000);
+                    }, 500); // 0.5초 후 시작 (더 빠르게)
                 } else {
                     throw new Error('카메라 스트림을 가져올 수 없습니다');
                 }
@@ -2446,7 +2446,7 @@
             canvas.height = 240;
 
             let detectionCount = 0;
-            const maxDetections = 30; // 30초 동안 시도
+            const maxDetections = 60; // 60초 동안 시도 (더 오래)
             let currentFullscreenARId = null; // 현재 표시 중인 전체 화면 AR ID
 
             const detectInterval = setInterval(async () => {
@@ -2492,7 +2492,7 @@
                     });
 
                     // 매우 낮은 임계값으로 감지 민감도 향상
-                    const threshold = 0.1; // 10%만 일치해도 감지
+                    const threshold = 0.05; // 5%만 일치해도 감지 (더 관대하게)
                     
                     console.log(`🔍 전체 화면 자동 감지 ${detectionCount}: 최고 유사도 ${Math.round(bestScore * 100)}%`);
                     console.log(`📊 감지 상세 정보:`, {
@@ -2638,7 +2638,7 @@
                         }, 2000);
                     }
                 }
-            }, 1000); // 1초마다 검색
+            }, 500); // 0.5초마다 검색 (더 빠르게)
         }
 
         function showFullscreenScanError(error) {
@@ -2863,34 +2863,34 @@
                     const img2 = new Image();
                     
                     // 더 작은 크기로 성능 향상
-                    canvas1.width = canvas2.width = 100;
-                    canvas1.height = canvas2.height = 100;
+                    canvas1.width = canvas2.width = 64; // 더 작게 해서 성능 향상
+                    canvas1.height = canvas2.height = 64;
                     
                     let img1Loaded = false;
                     let img2Loaded = false;
                     
                     img1.onload = () => {
-                        ctx1.drawImage(img1, 0, 0, 100, 100);
+                        ctx1.drawImage(img1, 0, 0, 64, 64);
                         img1Loaded = true;
                         if (img2Loaded) performUltraSimpleComparison();
                     };
                     
                     img2.onload = () => {
-                        ctx2.drawImage(img2, 0, 0, 100, 100);
+                        ctx2.drawImage(img2, 0, 0, 64, 64);
                         img2Loaded = true;
                         if (img1Loaded) performUltraSimpleComparison();
                     };
                     
                     function performUltraSimpleComparison() {
                         try {
-                            const data1 = ctx1.getImageData(0, 0, 100, 100).data;
-                            const data2 = ctx2.getImageData(0, 0, 100, 100).data;
+                            const data1 = ctx1.getImageData(0, 0, 64, 64).data;
+                            const data2 = ctx2.getImageData(0, 0, 64, 64).data;
                             
                             let matchingPixels = 0;
                             let totalPixels = 0;
                             
                             // 매우 간단한 픽셀 비교 (더 큰 샘플링)
-                            for (let i = 0; i < data1.length; i += 40) { // 10픽셀씩 건너뛰기
+                            for (let i = 0; i < data1.length; i += 16) { // 4픽셀씩 건너뛰기 (더 조밀하게)
                                 const r1 = data1[i];
                                 const g1 = data1[i + 1];
                                 const b1 = data1[i + 2];
@@ -2899,11 +2899,11 @@
                                 const g2 = data2[i + 1];
                                 const b2 = data2[i + 2];
                                 
-                                // 매우 관대한 색상 차이 계산
+                                // 매우 관대한 색상 차이 계산 (더 관대하게)
                                 const colorDiff = Math.abs(r1 - r2) + Math.abs(g1 - g2) + Math.abs(b1 - b2);
                                 
-                                // 매우 관대한 임계값 (300)
-                                if (colorDiff < 300) {
+                                // 매우 관대한 임계값 (400 - 더 관대하게)
+                                if (colorDiff < 400) {
                                     matchingPixels++;
                                 }
                                 
@@ -2911,6 +2911,13 @@
                             }
                             
                             const similarity = totalPixels > 0 ? matchingPixels / totalPixels : 0;
+                            
+                            // 디버깅을 위한 로그
+                            console.log('🔍 이미지 비교 결과:', {
+                                matchingPixels,
+                                totalPixels,
+                                similarity: Math.round(similarity * 100) + '%'
+                            });
                             
                             resolve(similarity);
                             
