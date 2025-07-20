@@ -2009,67 +2009,98 @@
                 let stream = null;
                 
                 try {
-                    // 1차 시도: 후면 카메라 (환경)
+                    // 모바일 최적화: 단순한 카메라 접근
+                    console.log('📱 모바일 카메라 접근 시도');
                     stream = await navigator.mediaDevices.getUserMedia({ 
                         video: { 
-                            facingMode: { ideal: 'environment' },
-                            width: { ideal: 1920, min: 1280 },
-                            height: { ideal: 1080, min: 720 }
+                            facingMode: 'environment', // 후면 카메라 우선
+                            width: { ideal: 1280, min: 640 },
+                            height: { ideal: 720, min: 480 }
                         } 
                     });
+                    console.log('✅ 후면 카메라 접근 성공');
                 } catch (envError) {
                     console.warn('후면 카메라 접근 실패:', envError.message);
                     
                     try {
-                        // 2차 시도: 전면 카메라
-                        scanStatusFullscreen.textContent = '전면 카메라로 시도 중...';
-                        
+                        // 전면 카메라 시도
+                        console.log('📱 전면 카메라 접근 시도');
                         stream = await navigator.mediaDevices.getUserMedia({ 
                             video: { 
-                                facingMode: { ideal: 'user' },
-                                width: { ideal: 1920, min: 1280 },
-                                height: { ideal: 1080, min: 720 }
+                                facingMode: 'user',
+                                width: { ideal: 1280, min: 640 },
+                                height: { ideal: 720, min: 480 }
                             } 
                         });
+                        console.log('✅ 전면 카메라 접근 성공');
                     } catch (userError) {
                         console.warn('전면 카메라 접근 실패:', userError.message);
                         
                         try {
-                            // 3차 시도: 기본 비디오
-                            scanStatusFullscreen.textContent = '기본 카메라로 시도 중...';
-                            
+                            // 기본 카메라 시도 (모바일 친화적)
+                            console.log('📱 기본 카메라 접근 시도');
                             stream = await navigator.mediaDevices.getUserMedia({ 
                                 video: {
-                                    width: { ideal: 1280, min: 640 },
-                                    height: { ideal: 720, min: 480 }
+                                    width: { ideal: 640, min: 320 },
+                                    height: { ideal: 480, min: 240 }
                                 }
                             });
+                            console.log('✅ 기본 카메라 접근 성공');
                         } catch (basicError) {
                             console.warn('기본 카메라 접근 실패:', basicError.message);
                             
                             try {
-                                // 4차 시도: 최소 설정
-                                scanStatusFullscreen.textContent = '최소 설정으로 시도 중...';
-                                stream = await navigator.mediaDevices.getUserMedia({ video: true });
+                                // 최소 설정 시도
+                                console.log('📱 최소 설정 카메라 접근 시도');
+                                stream = await navigator.mediaDevices.getUserMedia({ 
+                                    video: {
+                                        facingMode: 'environment' // 모바일에서 후면 카메라 우선
+                                    } 
+                                });
+                                console.log('✅ 최소 설정 카메라 접근 성공');
                             } catch (finalError) {
-                                throw new Error(`모든 카메라 접근 시도 실패: ${finalError.message}`);
+                                console.error('모든 카메라 접근 시도 실패:', finalError);
+                                throw new Error(`모바일 카메라 접근 실패: ${finalError.message}`);
                             }
                         }
                     }
                 }
                 
                 if (stream) {
+                    console.log('📱 비디오 스트림 설정 시작');
                     scannerVideoFullscreen.srcObject = stream;
                     
-                    // 비디오 스트림이 실제로 시작되었는지 확인
+                    // 모바일 최적화: 비디오 스트림 시작 확인
                     await new Promise((resolve, reject) => {
-                        scannerVideoFullscreen.onloadedmetadata = () => {
-                            scannerVideoFullscreen.play().then(resolve).catch(reject);
-                        };
-                        scannerVideoFullscreen.onerror = reject;
+                        const timeout = setTimeout(() => {
+                            reject(new Error('모바일 비디오 시작 시간 초과'));
+                        }, 10000); // 모바일에서는 10초로 늘림
                         
-                        // 5초 타임아웃
-                        setTimeout(() => reject(new Error('비디오 시작 시간 초과')), 5000);
+                        scannerVideoFullscreen.onloadedmetadata = () => {
+                            console.log('📱 비디오 메타데이터 로드 완료');
+                            clearTimeout(timeout);
+                            
+                            // 모바일에서 play() 호출 시 사용자 상호작용 필요할 수 있음
+                            scannerVideoFullscreen.play().then(() => {
+                                console.log('✅ 모바일 비디오 재생 시작');
+                                resolve();
+                            }).catch((playError) => {
+                                console.warn('모바일 비디오 재생 실패, 계속 진행:', playError);
+                                // 재생 실패해도 계속 진행 (일부 모바일 브라우저에서 발생)
+                                resolve();
+                            });
+                        };
+                        
+                        scannerVideoFullscreen.onerror = (error) => {
+                            console.error('📱 모바일 비디오 오류:', error);
+                            clearTimeout(timeout);
+                            reject(error);
+                        };
+                        
+                        // 모바일에서 추가 이벤트 리스너
+                        scannerVideoFullscreen.oncanplay = () => {
+                            console.log('📱 모바일 비디오 재생 가능');
+                        };
                     });
                     
                     // 성공 시 안내 메시지 업데이트
@@ -2113,65 +2144,98 @@
                 let stream = null;
                 
                 try {
-                    // 1차 시도: 후면 카메라 (환경)
+                    // 모바일 최적화: 단순한 카메라 접근
+                    console.log('📱 모바일 카메라 접근 시도 (startImageScan)');
                     stream = await navigator.mediaDevices.getUserMedia({ 
                         video: { 
-                            facingMode: { ideal: 'environment' },
+                            facingMode: 'environment', // 후면 카메라 우선
                             width: { ideal: 1280, min: 640 },
                             height: { ideal: 720, min: 480 }
                         } 
                     });
+                    console.log('✅ 후면 카메라 접근 성공 (startImageScan)');
                 } catch (envError) {
                     console.warn('후면 카메라 접근 실패:', envError.message);
                     
                     try {
-
-                        
+                        // 전면 카메라 시도
+                        console.log('📱 전면 카메라 접근 시도 (startImageScan)');
                         stream = await navigator.mediaDevices.getUserMedia({ 
                             video: { 
-                                facingMode: { ideal: 'user' },
+                                facingMode: 'user',
                                 width: { ideal: 1280, min: 640 },
                                 height: { ideal: 720, min: 480 }
                             } 
                         });
+                        console.log('✅ 전면 카메라 접근 성공 (startImageScan)');
                     } catch (userError) {
                         console.warn('전면 카메라 접근 실패:', userError.message);
                         
                         try {
-                            
-                            
+                            // 기본 카메라 시도 (모바일 친화적)
+                            console.log('📱 기본 카메라 접근 시도 (startImageScan)');
                             stream = await navigator.mediaDevices.getUserMedia({ 
                                 video: {
                                     width: { ideal: 640, min: 320 },
                                     height: { ideal: 480, min: 240 }
                                 }
                             });
+                            console.log('✅ 기본 카메라 접근 성공 (startImageScan)');
                         } catch (basicError) {
                             console.warn('기본 카메라 접근 실패:', basicError.message);
                             
                             try {
-                                
-                                
-                                stream = await navigator.mediaDevices.getUserMedia({ video: true });
+                                // 최소 설정 시도
+                                console.log('📱 최소 설정 카메라 접근 시도 (startImageScan)');
+                                stream = await navigator.mediaDevices.getUserMedia({ 
+                                    video: {
+                                        facingMode: 'environment' // 모바일에서 후면 카메라 우선
+                                    } 
+                                });
+                                console.log('✅ 최소 설정 카메라 접근 성공 (startImageScan)');
                             } catch (finalError) {
-                                throw new Error(`모든 카메라 접근 시도 실패: ${finalError.message}`);
+                                console.error('모든 카메라 접근 시도 실패:', finalError);
+                                throw new Error(`모바일 카메라 접근 실패: ${finalError.message}`);
                             }
                         }
                     }
                 }
                 
                 if (stream) {
+                    console.log('📱 비디오 스트림 설정 시작 (startImageScan)');
                     video.srcObject = stream;
                     
-                    // 비디오 스트림이 실제로 시작되었는지 확인
+                    // 모바일 최적화: 비디오 스트림 시작 확인
                     await new Promise((resolve, reject) => {
-                        video.onloadedmetadata = () => {
-                            video.play().then(resolve).catch(reject);
-                        };
-                        video.onerror = reject;
+                        const timeout = setTimeout(() => {
+                            reject(new Error('모바일 비디오 시작 시간 초과'));
+                        }, 10000); // 모바일에서는 10초로 늘림
                         
-                        // 5초 타임아웃
-                        setTimeout(() => reject(new Error('비디오 시작 시간 초과')), 5000);
+                        video.onloadedmetadata = () => {
+                            console.log('📱 비디오 메타데이터 로드 완료 (startImageScan)');
+                            clearTimeout(timeout);
+                            
+                            // 모바일에서 play() 호출 시 사용자 상호작용 필요할 수 있음
+                            video.play().then(() => {
+                                console.log('✅ 모바일 비디오 재생 시작 (startImageScan)');
+                                resolve();
+                            }).catch((playError) => {
+                                console.warn('모바일 비디오 재생 실패, 계속 진행:', playError);
+                                // 재생 실패해도 계속 진행 (일부 모바일 브라우저에서 발생)
+                                resolve();
+                            });
+                        };
+                        
+                        video.onerror = (error) => {
+                            console.error('📱 모바일 비디오 오류 (startImageScan):', error);
+                            clearTimeout(timeout);
+                            reject(error);
+                        };
+                        
+                        // 모바일에서 추가 이벤트 리스너
+                        video.oncanplay = () => {
+                            console.log('📱 모바일 비디오 재생 가능 (startImageScan)');
+                        };
                     });
                     
                     // 성공 시 안내 메시지 업데이트
