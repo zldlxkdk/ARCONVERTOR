@@ -1141,11 +1141,14 @@
                 height: 100%;
                 z-index: 1001;
                 display: none;
-                pointer-events: none;
+                pointer-events: auto;
             ">
                 <!-- AR 비디오 -->
                 <video id="fullscreenOverlayVideo" class="fullscreen-overlay-video" loop muted playsinline style="
                     position: absolute;
+                    top: 50%;
+                    left: 50%;
+                    transform: translate(-50%, -50%);
                     border: 3px solid #ff6b35;
                     border-radius: 12px;
                     box-shadow: 0 0 25px rgba(255, 107, 53, 0.8);
@@ -1153,8 +1156,8 @@
                     z-index: 1002;
                     display: none;
                     object-fit: cover;
-                    width: 100%;
-                    height: 100%;
+                    width: 400px;
+                    height: 300px;
                 "></video>
                 
                 <!-- AR 프레임 -->
@@ -4173,46 +4176,24 @@
             console.log('🔇 전체 화면 AR 숨김');
         }
 
-        // 전체 화면 AR 위치 계산
+        // 전체 화면 AR 위치 계산 (CSS로 고정)
         function calculateFullscreenARPosition(arData) {
             const fullscreenOverlayVideo = document.getElementById('fullscreenOverlayVideo');
             const fullscreenOverlayFrame = document.getElementById('fullscreenOverlayFrame');
-            const fullscreenScanner = document.getElementById('fullscreenScanner');
             
-            // 전체 화면 스캐너 크기
-            const containerWidth = fullscreenScanner.offsetWidth;
-            const containerHeight = fullscreenScanner.offsetHeight;
-            
-            // AR 비디오 크기 (전체 화면에 맞춤)
-            const videoWidth = 400;
-            const videoHeight = 300;
-            
-            // 중앙 위치 계산
-            const left = (containerWidth - videoWidth) / 2;
-            const top = (containerHeight - videoHeight) / 2;
-            
-            // 비디오 위치 설정
-            fullscreenOverlayVideo.style.left = left + 'px';
-            fullscreenOverlayVideo.style.top = top + 'px';
-            fullscreenOverlayVideo.style.width = videoWidth + 'px';
-            fullscreenOverlayVideo.style.height = videoHeight + 'px';
+            // 비디오는 CSS로 중앙 정렬 (400x300)
             fullscreenOverlayVideo.style.display = 'block';
-            fullscreenOverlayVideo.style.background = 'transparent';
-            fullscreenOverlayVideo.style.objectFit = 'cover';
-            fullscreenOverlayVideo.style.border = '3px solid #ff6b35';
-            fullscreenOverlayVideo.style.borderRadius = '12px';
-            fullscreenOverlayVideo.style.boxShadow = '0 0 25px rgba(255, 107, 53, 0.8)';
-            fullscreenOverlayVideo.style.zIndex = '1002';
             
-            // 프레임 위치 설정 (비디오보다 약간 크게)
+            // 프레임은 비디오 주변에 표시
             const frameMargin = 15;
-            fullscreenOverlayFrame.style.left = (left - frameMargin) + 'px';
-            fullscreenOverlayFrame.style.top = (top - frameMargin) + 'px';
-            fullscreenOverlayFrame.style.width = (videoWidth + frameMargin * 2) + 'px';
-            fullscreenOverlayFrame.style.height = (videoHeight + frameMargin * 2) + 'px';
+            fullscreenOverlayFrame.style.left = '50%';
+            fullscreenOverlayFrame.style.top = '50%';
+            fullscreenOverlayFrame.style.transform = 'translate(-50%, -50%)';
+            fullscreenOverlayFrame.style.width = (400 + frameMargin * 2) + 'px';
+            fullscreenOverlayFrame.style.height = (300 + frameMargin * 2) + 'px';
             fullscreenOverlayFrame.style.display = 'block';
             
-            console.log('📍 전체 화면 AR 위치 설정:', { left, top, width: videoWidth, height: videoHeight });
+            console.log('📍 전체 화면 AR 위치 설정: 중앙 정렬 (400x300)');
         }
 
         // 전체 화면 YouTube 로드
@@ -4266,13 +4247,16 @@
             // 비디오 스타일 강제 설정
             fullscreenOverlayVideo.style.background = 'transparent';
             fullscreenOverlayVideo.style.objectFit = 'cover';
-            fullscreenOverlayVideo.style.width = '100%';
-            fullscreenOverlayVideo.style.height = '100%';
+            fullscreenOverlayVideo.style.width = '400px';
+            fullscreenOverlayVideo.style.height = '300px';
             fullscreenOverlayVideo.style.display = 'block';
             fullscreenOverlayVideo.style.border = '3px solid #ff6b35';
             fullscreenOverlayVideo.style.borderRadius = '12px';
             fullscreenOverlayVideo.style.boxShadow = '0 0 25px rgba(255, 107, 53, 0.8)';
             fullscreenOverlayVideo.style.zIndex = '1002';
+            fullscreenOverlayVideo.style.top = '50%';
+            fullscreenOverlayVideo.style.left = '50%';
+            fullscreenOverlayVideo.style.transform = 'translate(-50%, -50%)';
             
             // 비디오 소스 설정
             if (arData.videoData) {
@@ -4313,11 +4297,16 @@
                         // 비디오 스타일 최종 확인
                         fullscreenOverlayVideo.style.background = 'transparent';
                         fullscreenOverlayVideo.style.objectFit = 'cover';
+                        fullscreenOverlayVideo.style.width = '400px';
+                        fullscreenOverlayVideo.style.height = '300px';
                         fullscreenOverlayVideo.style.display = 'block';
                         fullscreenOverlayVideo.style.border = '3px solid #ff6b35';
                         fullscreenOverlayVideo.style.borderRadius = '12px';
                         fullscreenOverlayVideo.style.boxShadow = '0 0 25px rgba(255, 107, 53, 0.8)';
                         fullscreenOverlayVideo.style.zIndex = '1002';
+                        fullscreenOverlayVideo.style.top = '50%';
+                        fullscreenOverlayVideo.style.left = '50%';
+                        fullscreenOverlayVideo.style.transform = 'translate(-50%, -50%)';
                         
                         console.log('🎬 전체 화면 비디오 스타일 적용 완료:', {
                             background: fullscreenOverlayVideo.style.background,
