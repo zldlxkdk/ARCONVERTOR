@@ -7,6 +7,12 @@
     <script src="https://aframe.io/releases/1.4.0/aframe.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.2/dist/mindar-image-aframe.prod.js"></script>
     <style>
+        @keyframes pulse {
+            0% { transform: translate(-50%, -50%) scale(1); opacity: 0.8; }
+            50% { transform: translate(-50%, -50%) scale(1.05); opacity: 1; }
+            100% { transform: translate(-50%, -50%) scale(1); opacity: 0.8; }
+        }
+        
         * {
             margin: 0;
             padding: 0;
@@ -1026,24 +1032,44 @@
         </div>
     </div>
 
-    <!-- 전체 화면 스캐너 -->
-    <div class="fullscreen-scanner" id="fullscreenScanner">
-        <video id="scannerVideoFullscreen" class="scanner-video-fullscreen" autoplay muted playsinline></video>
-        
-        <div class="scanner-controls-fullscreen">
-            <div class="scan-status-fullscreen" id="scanStatusFullscreen">카메라 준비 중...</div>
-            <button class="scan-close-btn" onclick="closeFullscreenScan()">✕ 닫기</button>
+            <!-- 전체 화면 자동 이미지 스캐너 -->
+        <div class="fullscreen-scanner" id="fullscreenScanner">
+            <video id="scannerVideoFullscreen" class="scanner-video-fullscreen" autoplay muted playsinline></video>
+            
+            <div class="scanner-controls-fullscreen">
+                <div class="scan-status-fullscreen" id="scanStatusFullscreen">카메라 준비 중...</div>
+                <button class="scan-close-btn" onclick="closeFullscreenScan()">✕ 닫기</button>
+            </div>
+            
+            <!-- 자동 이미지 감지 영역 표시 -->
+            <div class="auto-detection-area" id="autoDetectionArea" style="
+                position: absolute;
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%, -50%);
+                width: 80%;
+                height: 60%;
+                border: 2px dashed #4CAF50;
+                border-radius: 20px;
+                background: rgba(76, 175, 80, 0.1);
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                color: #4CAF50;
+                font-size: 16px;
+                font-weight: 600;
+                text-align: center;
+                z-index: 1000;
+            ">
+                🔍 자동 이미지 감지 영역<br>
+                <span style="font-size: 14px; opacity: 0.8;">화면 전체에서 이미지를 자동으로 찾습니다</span>
+            </div>
+            
+            <div class="scan-instructions-fullscreen" id="scanInstructionsFullscreen">
+                화면 어디든 AR 이미지를 비춰주세요<br>
+                <span style="opacity: 0.7;">자동으로 이미지를 찾아서 분석합니다</span>
+            </div>
         </div>
-        
-        <div class="scanner-overlay-fullscreen">
-            <div class="corner-markers"></div>
-        </div>
-        
-        <div class="scan-instructions-fullscreen" id="scanInstructionsFullscreen">
-            생성된 AR 이미지를 프레임 안에 맞춰주세요<br>
-            <span style="opacity: 0.7;">3초 후 자동 감지</span>
-        </div>
-    </div>
 
     <!-- AR 뷰어 -->
     <div class="ar-viewer" id="arViewer">
@@ -2029,17 +2055,17 @@
                     });
                     
                     // 성공 시 안내 메시지 업데이트
-                    scanStatusFullscreen.textContent = '📷 스캔 준비 완료';
+                    scanStatusFullscreen.textContent = '🔍 자동 이미지 감지 준비 완료';
                     scanInstructionsFullscreen.innerHTML = `
-                        생성된 AR 이미지를 프레임 안에 맞춰주세요<br>
-                        <span style="opacity: 0.7;">3초 후 자동 감지</span>
+                        화면 어디든 AR 이미지를 비춰주세요<br>
+                        <span style="opacity: 0.7;">자동으로 이미지를 찾아서 분석합니다</span>
                     `;
                     
-                    // 3초 후 자동 감지
+                    // 즉시 자동 감지 시작 (프레임 제한 없음)
                     scanTimeout = setTimeout(() => {
-                        console.log('전체 화면에서 3초 자동 감지 시작');
-                        attemptImageDetectionFullscreen();
-                    }, 3000);
+                        console.log('🔍 전체 화면 자동 이미지 감지 시작');
+                        startAutoDetectionFullscreen();
+                    }, 1000);
                 } else {
                     throw new Error('카메라 스트림을 가져올 수 없습니다');
                 }
@@ -2296,7 +2322,9 @@
             attemptImageDetection();
         }
 
-        function attemptImageDetectionFullscreen() {
+        function startAutoDetectionFullscreen() {
+            console.log('🔍 전체 화면 자동 이미지 감지 시작');
+            
             const arKeys = Object.keys(localStorage).filter(key => key.startsWith('arData_'));
             if (arKeys.length === 0) {
                 document.getElementById('scanInstructionsFullscreen').innerHTML = `
@@ -2306,20 +2334,20 @@
                 return;
             }
             
-            console.log('전체 화면에서 이미지 감지 시도, 저장된 AR 데이터:', arKeys.length + '개');
+            console.log('🔍 전체 화면에서 자동 이미지 감지 시작, 저장된 AR 데이터:', arKeys.length + '개');
             
-            // 전체 화면에서 실제 이미지 인식 시도
-            attemptRealImageDetectionFullscreen(arKeys);
+            // 전체 화면에서 자동 이미지 인식 시도
+            attemptAutoImageDetectionFullscreen(arKeys);
         }
 
-        function attemptRealImageDetectionFullscreen(arKeys) {
+        function attemptAutoImageDetectionFullscreen(arKeys) {
             const video = document.getElementById('scannerVideoFullscreen');
             const scanStatusFullscreen = document.getElementById('scanStatusFullscreen');
             const scanInstructionsFullscreen = document.getElementById('scanInstructionsFullscreen');
-            const scanFrame = document.querySelector('.scanner-overlay-fullscreen');
+            const autoDetectionArea = document.getElementById('autoDetectionArea');
             
             if (!video || !video.srcObject) {
-                console.log('전체 화면 카메라가 없음, 직접 감지 모드로 실행');
+                console.log('🔍 전체 화면 카메라가 없음, 직접 감지 모드로 실행');
                 
                 const latestKey = arKeys[arKeys.length - 1];
                 const arId = latestKey.replace('arData_', '');
@@ -2332,12 +2360,7 @@
                 setTimeout(() => {
                     try {
                         closeFullscreenScan();
-                        loadAndPlayARWithPosition(arId, {
-                            centerX: 0.5,
-                            centerY: 0.5,
-                            width: 0.3,
-                            height: 0.3
-                        });
+                        loadAndPlayAR(arId);
                     } catch (error) {
                         console.error('AR 로딩 오류:', error);
                         scanInstructionsFullscreen.innerHTML = `
@@ -2350,61 +2373,31 @@
             }
 
             scanInstructionsFullscreen.innerHTML = `
-                <span style="color: #4CAF50;">📸 이미지 스캔 중...</span><br>
-                <span style="opacity: 0.8; font-size: 14px;">생성한 AR 이미지를 프레임 안에 맞춰주세요</span>
+                <span style="color: #4CAF50;">🔍 자동 이미지 검색 중...</span><br>
+                <span style="opacity: 0.8; font-size: 14px;">화면 전체에서 이미지를 자동으로 찾습니다</span>
             `;
 
-            // 스캔 프레임 영역 계산 (고정 중앙 위치 사용)
-            const viewportWidth = window.innerWidth;
-            const viewportHeight = window.innerHeight;
-            const frameSize = 280; // CSS에서 설정한 고정 크기
-            
-            // 중앙 기준으로 프레임 영역 계산
-            const frameX = (viewportWidth - frameSize) / 2 / viewportWidth;
-            const frameY = (viewportHeight - frameSize) / 2 / viewportHeight;
-            const frameWidth = frameSize / viewportWidth;
-            const frameHeight = frameSize / viewportHeight;
+            // 자동 감지 영역 애니메이션 시작
+            autoDetectionArea.style.animation = 'pulse 2s infinite';
 
-            console.log('스캔 프레임 영역 (고정 중앙):', { 
-                frameX, frameY, frameWidth, frameHeight,
-                viewportWidth, viewportHeight, frameSize 
-            });
-
-            // 카메라에서 프레임 캡처 및 분석
+            // 전체 화면에서 이미지 감지 (프레임 제한 없음)
             const canvas = document.createElement('canvas');
             const ctx = canvas.getContext('2d');
             canvas.width = video.videoWidth || 1280;
             canvas.height = video.videoHeight || 720;
 
-            // 프레임 영역만 분석하기 위한 캔버스
-            const frameCanvas = document.createElement('canvas');
-            const frameCtx = frameCanvas.getContext('2d');
-            frameCanvas.width = 300;
-            frameCanvas.height = 300;
-
             let detectionCount = 0;
-            const maxDetections = 30; // 3초로 연장
+            const maxDetections = 30; // 30초 동안 시도
 
             const detectInterval = setInterval(() => {
                 detectionCount++;
 
                 try {
-                    // 전체 프레임 캡처
+                    // 전체 화면 캡처 (프레임 제한 없음)
                     ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-                    
-                    // 스캔 프레임 영역만 추출
-                    const cropX = Math.max(0, Math.floor(frameX * canvas.width));
-                    const cropY = Math.max(0, Math.floor(frameY * canvas.height));
-                    const cropW = Math.min(canvas.width - cropX, Math.floor(frameWidth * canvas.width));
-                    const cropH = Math.min(canvas.height - cropY, Math.floor(frameHeight * canvas.height));
-                    
-                    // 프레임 영역을 별도 캔버스에 그리기
-                    frameCtx.clearRect(0, 0, frameCanvas.width, frameCanvas.height);
-                    frameCtx.drawImage(canvas, cropX, cropY, cropW, cropH, 0, 0, frameCanvas.width, frameCanvas.height);
-                    
-                    const croppedFrame = frameCanvas.toDataURL('image/jpeg', 0.9);
+                    const fullFrame = canvas.toDataURL('image/jpeg', 0.8);
 
-                    // 특수 마커 기반 정밀 인식 시스템
+                    // 전체 화면에서 이미지 검색
                     let bestMatch = null;
                     let bestScore = 0;
 
@@ -2415,10 +2408,10 @@
                         
                         // 특수 마커가 있는 경우 고급 인식 사용
                         if (arData.hasSpecialMarkers) {
-                            similarity = analyzeSpecialMarkers(croppedFrame, arData.targetImage);
+                            similarity = analyzeSpecialMarkers(fullFrame, arData.targetImage);
                         } else {
-                            // 기본 이미지 비교
-                            similarity = compareImages(croppedFrame, arData.targetImage);
+                            // 기본 이미지 비교 (전체 화면)
+                            similarity = compareImages(fullFrame, arData.targetImage);
                         }
 
                         if (similarity > bestScore) {
@@ -2427,132 +2420,81 @@
                                 id: key.replace('arData_', ''),
                                 score: similarity,
                                 data: arData,
-                                framePosition: {
-                                    x: frameX,
-                                    y: frameY,
-                                    width: frameWidth,
-                                    height: frameHeight,
-                                    centerX: frameX + frameWidth / 2,
-                                    centerY: frameY + frameHeight / 2
-                                },
                                 hasSpecialMarkers: arData.hasSpecialMarkers || false
                             };
                         }
                     });
 
-                    console.log(`프레임 영역 분석 ${detectionCount}: 최고 유사도 ${Math.round(bestScore * 100)}%`);
+                    console.log(`🔍 전체 화면 자동 감지 ${detectionCount}: 최고 유사도 ${Math.round(bestScore * 100)}%`);
 
                     // 진행률 표시
                     const progress = Math.round((detectionCount / maxDetections) * 100);
-                    scanInstructionsFullscreen.innerHTML = `
-                        <span style="color: #4CAF50;">📸 이미지 분석 중... ${progress}%</span><br>
-                        <span style="opacity: 0.8; font-size: 14px;">최고 매칭도: ${Math.round(bestScore * 100)}%</span>
+                    scanStatusFullscreen.textContent = `🔍 자동 이미지 검색 중... ${progress}%`;
+                    
+                    // 자동 감지 영역 업데이트
+                    autoDetectionArea.innerHTML = `
+                        🔍 자동 이미지 감지 영역<br>
+                        <span style="font-size: 14px; opacity: 0.8;">감지도: ${Math.round(bestScore * 100)}%</span><br>
+                        <span style="font-size: 12px; opacity: 0.6;">진행률: ${progress}%</span>
                     `;
 
-                    // 특수 마커 기반 정밀 인식 임계값 적용
-                    const threshold = bestMatch && bestMatch.hasSpecialMarkers ? 0.8 : 0.7; // 특수 마커는 80% 이상
+                    // 임계값 적용 (전체 화면 검색이므로 더 낮은 임계값)
+                    const threshold = bestMatch && bestMatch.hasSpecialMarkers ? 0.6 : 0.5;
                     
                     if (bestMatch && bestScore > threshold) {
                         clearInterval(detectInterval);
 
                         const markerType = bestMatch.hasSpecialMarkers ? '특수 마커' : '일반 이미지';
-                        const accuracyLevel = bestScore > 0.9 ? '매우 높음' : bestScore > 0.8 ? '높음' : '보통';
                         
                         scanInstructionsFullscreen.innerHTML = `
-                            <span style="color: #4CAF50;">🎯 ${markerType} 인식 성공! (${Math.round(bestScore * 100)}%)</span><br>
-                            <span style="opacity: 0.8; color: #2196F3;">정확도: ${accuracyLevel} - 정밀 위치에 AR 영상 로딩 중...</span>
+                            <span style="color: #4CAF50;">🎯 ${markerType} 자동 감지 성공! (${Math.round(bestScore * 100)}%)</span><br>
+                            <span style="opacity: 0.8; color: #2196F3;">화면에서 이미지를 찾았습니다 - AR 영상 로딩 중...</span>
+                        `;
+
+                        // 자동 감지 영역 성공 표시
+                        autoDetectionArea.style.border = '3px solid #4CAF50';
+                        autoDetectionArea.style.background = 'rgba(76, 175, 80, 0.3)';
+                        autoDetectionArea.style.animation = 'none';
+                        autoDetectionArea.innerHTML = `
+                            ✅ 이미지 감지 성공!<br>
+                            <span style="font-size: 14px; opacity: 0.8;">AR 뷰어로 전환 중...</span>
                         `;
 
                         setTimeout(() => {
                             try {
                                 closeFullscreenScan();
                                 setTimeout(() => {
-                                    loadAndPlayARWithPosition(bestMatch.id, bestMatch.framePosition);
-                                }, 200); // 화면 전환 후 약간의 지연
+                                    loadAndPlayAR(bestMatch.id);
+                                }, 500);
                             } catch (error) {
-                                console.error('AR 로딩 오류 (고정확도):', error);
+                                console.error('AR 로딩 오류 (자동 감지):', error);
                                 showFullscreenScanError(error);
                             }
-                        }, 1500);
+                        }, 2000);
 
                     } else if (detectionCount >= maxDetections) {
                         clearInterval(detectInterval);
 
-                        if (bestMatch && bestScore > 0.4) {
-                            scanInstructionsFullscreen.innerHTML = `
-                                <span style="color: #ff6b35;">📷 부분 매칭 감지 (${Math.round(bestScore * 100)}%)</span><br>
-                                <span style="opacity: 0.8;">감지된 위치에 AR 영상을 실행합니다...</span>
-                            `;
+                        scanInstructionsFullscreen.innerHTML = `
+                            <span style="color: #ff6b35;">⏰ 자동 감지 시간 초과</span><br>
+                            <span style="opacity: 0.8;">이미지를 찾지 못했습니다. 다시 시도해주세요</span>
+                        `;
 
-                            setTimeout(() => {
-                                try {
-                                    closeFullscreenScan();
-                                    setTimeout(() => {
-                                        loadAndPlayARWithPosition(bestMatch.id, bestMatch.framePosition);
-                                    }, 200);
-                                } catch (error) {
-                                    console.error('AR 로딩 오류 (부분 매칭):', error);
-                                    showFullscreenScanError(error);
-                                }
-                            }, 1500);
-                        } else {
-                            scanInstructionsFullscreen.innerHTML = `
-                                <span style="color: #ff6b35;">🎯 자동 AR 모드</span><br>
-                                <span style="opacity: 0.8;">최신 생성 이미지로 AR을 실행합니다...</span>
-                            `;
-
-                            const latestKey = arKeys[arKeys.length - 1];
-                            const arId = latestKey.replace('arData_', '');
-
-                            setTimeout(() => {
-                                try {
-                                    closeFullscreenScan();
-                                    setTimeout(() => {
-                                        loadAndPlayARWithPosition(arId, {
-                                            centerX: 0.5,
-                                            centerY: 0.5,
-                                            width: 0.3,
-                                            height: 0.3
-                                        });
-                                    }, 200);
-                                } catch (error) {
-                                    console.error('AR 로딩 오류 (자동 모드):', error);
-                                    showFullscreenScanError(error);
-                                }
-                            }, 1500);
-                        }
+                        // 자동 감지 영역 실패 표시
+                        autoDetectionArea.style.border = '3px solid #f44336';
+                        autoDetectionArea.style.background = 'rgba(244, 67, 54, 0.3)';
+                        autoDetectionArea.style.animation = 'none';
+                        autoDetectionArea.innerHTML = `
+                            ❌ 이미지 감지 실패<br>
+                            <span style="font-size: 14px; opacity: 0.8;">다시 시도해주세요</span>
+                        `;
                     }
+
                 } catch (error) {
-                    console.error('전체화면 프레임 분석 오류:', error);
-                    clearInterval(detectInterval);
-
-                    scanInstructionsFullscreen.innerHTML = `
-                        <span style="color: #4CAF50;">🎯 AR 자동 실행</span><br>
-                        <span style="opacity: 0.8;">기본 설정으로 AR 영상을 로딩합니다...</span>
-                    `;
-
-                    const latestKey = arKeys[arKeys.length - 1];
-                    const arId = latestKey.replace('arData_', '');
-
-                    setTimeout(() => {
-                        try {
-                            closeFullscreenScan();
-                            setTimeout(() => {
-                                loadAndPlayARWithPosition(arId, {
-                                    centerX: 0.5,
-                                    centerY: 0.5,
-                                    width: 0.3,
-                                    height: 0.3
-                                });
-                            }, 200);
-                        } catch (error) {
-                            console.error('AR 로딩 오류 (에러 처리):', error);
-                            showFullscreenScanError(error);
-                        }
-                    }, 1000);
+                    console.error('🔍 자동 이미지 감지 오류:', error);
+                    scanStatusFullscreen.textContent = '❌ 이미지 감지 오류';
                 }
-
-            }, 100);
+            }, 1000); // 1초마다 검색
         }
 
         function showFullscreenScanError(error) {
