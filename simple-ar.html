@@ -671,7 +671,7 @@
                 <div class="scanner-container" id="scannerContainer" style="display: none;">
                     <video id="scannerVideo" class="scanner-video" autoplay muted playsinline></video>
                     <div class="scanner-overlay"></div>
-                    <div class="scan-instructions">
+                    <div class="scan-instructions" id="scan-instructions">
                         생성된 AR 이미지를 프레임 안에 맞춰주세요<br>
                         <span style="opacity: 0.7;">3초 후 자동 감지</span>
                     </div>
@@ -1199,25 +1199,216 @@
                 btn.style.display = 'none';
                 container.style.display = 'block';
                 
-                const stream = await navigator.mediaDevices.getUserMedia({ 
-                    video: { 
-                        facingMode: 'environment',
-                        width: { ideal: 1280 },
-                        height: { ideal: 720 }
-                    } 
-                });
-                video.srcObject = stream;
+                // 카메라 권한 및 접근 상태 표시
+                document.getElementById('scan-instructions').innerHTML = `
+                    카메라 권한을 요청하고 있습니다...<br>
+                    <span style="opacity: 0.7;">브라우저에서 허용을 눌러주세요</span>
+                `;
                 
-                // 3초 후 자동 감지
-                scanTimeout = setTimeout(() => {
-                    simulateImageDetection();
-                }, 3000);
+                let stream = null;
+                
+                try {
+                    // 1차 시도: 후면 카메라 (환경)
+                    stream = await navigator.mediaDevices.getUserMedia({ 
+                        video: { 
+                            facingMode: { ideal: 'environment' },
+                            width: { ideal: 1280, min: 640 },
+                            height: { ideal: 720, min: 480 }
+                        } 
+                    });
+                } catch (envError) {
+                    console.warn('후면 카메라 접근 실패:', envError.message);
+                    
+                    try {
+                        // 2차 시도: 전면 카메라
+                        document.getElementById('scan-instructions').innerHTML = `
+                            후면 카메라 접근 실패. 전면 카메라로 시도 중...<br>
+                            <span style="opacity: 0.7;">전면 카메라로 스캔하세요</span>
+                        `;
+                        
+                        stream = await navigator.mediaDevices.getUserMedia({ 
+                            video: { 
+                                facingMode: { ideal: 'user' },
+                                width: { ideal: 1280, min: 640 },
+                                height: { ideal: 720, min: 480 }
+                            } 
+                        });
+                    } catch (userError) {
+                        console.warn('전면 카메라 접근 실패:', userError.message);
+                        
+                        try {
+                            // 3차 시도: 기본 비디오 (카메라 지정 없음)
+                            document.getElementById('scan-instructions').innerHTML = `
+                                기본 카메라로 시도 중...<br>
+                                <span style="opacity: 0.7;">사용 가능한 카메라를 찾고 있습니다</span>
+                            `;
+                            
+                            stream = await navigator.mediaDevices.getUserMedia({ 
+                                video: {
+                                    width: { ideal: 640, min: 320 },
+                                    height: { ideal: 480, min: 240 }
+                                }
+                            });
+                        } catch (basicError) {
+                            console.warn('기본 카메라 접근 실패:', basicError.message);
+                            
+                            try {
+                                // 4차 시도: 최소 설정
+                                document.getElementById('scan-instructions').innerHTML = `
+                                    최소 설정으로 시도 중...<br>
+                                    <span style="opacity: 0.7;">카메라를 활성화하고 있습니다</span>
+                                `;
+                                
+                                stream = await navigator.mediaDevices.getUserMedia({ video: true });
+                            } catch (finalError) {
+                                throw new Error(`모든 카메라 접근 시도 실패: ${finalError.message}`);
+                            }
+                        }
+                    }
+                }
+                
+                if (stream) {
+                    video.srcObject = stream;
+                    
+                    // 비디오 스트림이 실제로 시작되었는지 확인
+                    await new Promise((resolve, reject) => {
+                        video.onloadedmetadata = () => {
+                            video.play().then(resolve).catch(reject);
+                        };
+                        video.onerror = reject;
+                        
+                        // 5초 타임아웃
+                        setTimeout(() => reject(new Error('비디오 시작 시간 초과')), 5000);
+                    });
+                    
+                    // 성공 시 안내 메시지 업데이트
+                    document.getElementById('scan-instructions').innerHTML = `
+                        생성된 AR 이미지를 프레임 안에 맞춰주세요<br>
+                        <span style="opacity: 0.7;">3초 후 자동 감지</span>
+                    `;
+                    
+                    // 3초 후 자동 감지
+                    scanTimeout = setTimeout(() => {
+                        simulateImageDetection();
+                    }, 3000);
+                } else {
+                    throw new Error('카메라 스트림을 가져올 수 없습니다');
+                }
                 
             } catch (error) {
-                alert('카메라 접근 실패: ' + error.message);
-                document.getElementById('startScanBtn').style.display = 'block';
+                console.error('카메라 접근 전체 실패:', error);
+                
+                // 사용자에게 상세한 안내 제공
+                let errorMessage = '카메라 접근 실패';
+                let helpMessage = '';
+                
+                if (error.name === 'NotAllowedError' || error.message.includes('Permission denied')) {
+                    errorMessage = '카메라 권한이 거부되었습니다';
+                    helpMessage = `
+                        <div style="margin-top: 15px; font-size: 12px;">
+                            <div style="font-weight: 600; margin-bottom: 10px;">📱 해결 방법:</div>
+                            <div style="text-align: left;">
+                                • 브라우저 주소창의 🔒 아이콘 클릭<br>
+                                • 카메라 권한을 "허용"으로 변경<br>
+                                • 페이지 새로고침 후 다시 시도<br>
+                                • 또는 브라우저 설정에서 카메라 권한 확인
+                            </div>
+                        </div>
+                    `;
+                } else if (error.name === 'NotFoundError' || error.message.includes('Requested device not found')) {
+                    errorMessage = '카메라를 찾을 수 없습니다';
+                    helpMessage = `
+                        <div style="margin-top: 15px; font-size: 12px;">
+                            <div style="font-weight: 600; margin-bottom: 10px;">📱 해결 방법:</div>
+                            <div style="text-align: left;">
+                                • 다른 카메라 앱이 실행중인지 확인<br>
+                                • 브라우저를 완전히 종료 후 다시 실행<br>
+                                • 기기 재시작 후 다시 시도<br>
+                                • 다른 브라우저에서 시도
+                            </div>
+                        </div>
+                    `;
+                } else if (error.name === 'NotSupportedError' || error.message.includes('not supported')) {
+                    errorMessage = '이 브라우저는 카메라를 지원하지 않습니다';
+                    helpMessage = `
+                        <div style="margin-top: 15px; font-size: 12px;">
+                            <div style="font-weight: 600; margin-bottom: 10px;">📱 해결 방법:</div>
+                            <div style="text-align: left;">
+                                • Chrome, Safari, Firefox 등 최신 브라우저 사용<br>
+                                • HTTPS 연결인지 확인 (http:// → https://)<br>
+                                • 브라우저 업데이트<br>
+                                • 앱 내 브라우저가 아닌 기본 브라우저 사용
+                            </div>
+                        </div>
+                    `;
+                } else if (error.name === 'OverconstrainedError' || error.message.includes('Could not start video source')) {
+                    errorMessage = '카메라 설정을 조정할 수 없습니다';
+                    helpMessage = `
+                        <div style="margin-top: 15px; font-size: 12px;">
+                            <div style="font-weight: 600; margin-bottom: 10px;">📱 해결 방법:</div>
+                            <div style="text-align: left;">
+                                • 다른 앱에서 카메라 사용 중인지 확인<br>
+                                • 카메라 앱 강제 종료 후 다시 시도<br>
+                                • 기기 재시작<br>
+                                • 아래 "카메라 없이 체험" 버튼 사용
+                            </div>
+                        </div>
+                    `;
+                }
+                
+                // 오류 UI 표시
                 document.getElementById('scannerContainer').style.display = 'none';
+                document.getElementById('startScanBtn').style.display = 'none';
+                
+                const container = document.getElementById('scannerContainer').parentElement;
+                const errorDiv = document.createElement('div');
+                errorDiv.className = 'scan-error';
+                errorDiv.style.cssText = `
+                    background: rgba(244, 67, 54, 0.1);
+                    border: 1px solid rgba(244, 67, 54, 0.3);
+                    border-radius: 10px;
+                    padding: 20px;
+                    margin: 15px 0;
+                    text-align: center;
+                `;
+                
+                errorDiv.innerHTML = `
+                    <div style="font-size: 16px; font-weight: 600; margin-bottom: 10px; color: #ff6b35;">
+                        ❌ ${errorMessage}
+                    </div>
+                    <div style="font-size: 13px; opacity: 0.9; margin-bottom: 15px;">
+                        ${error.message}
+                    </div>
+                    ${helpMessage}
+                    <div style="margin-top: 20px; display: flex; gap: 10px;">
+                        <button class="btn" onclick="retryCamera()" style="flex: 1; font-size: 12px; padding: 8px 16px;">
+                            🔄 다시 시도
+                        </button>
+                        <button class="btn" onclick="simulateImageDetection()" style="flex: 1; font-size: 12px; padding: 8px 16px; background: #4CAF50;">
+                            📷 카메라 없이 체험
+                        </button>
+                    </div>
+                `;
+                
+                // 기존 오류 메시지 제거
+                const existingError = container.querySelector('.scan-error');
+                if (existingError) {
+                    existingError.remove();
+                }
+                
+                container.appendChild(errorDiv);
             }
+        }
+
+        function retryCamera() {
+            // 오류 메시지 제거
+            const errorDiv = document.querySelector('.scan-error');
+            if (errorDiv) {
+                errorDiv.remove();
+            }
+            
+            // 스캔 버튼 다시 표시
+            document.getElementById('startScanBtn').style.display = 'block';
         }
 
         function simulateImageDetection() {
