@@ -8,7 +8,9 @@
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "deploy": "npm run build && gh-pages -d dist"
+    "deploy": "npm run build && gh-pages -d dist",
+    "serve-local": "npx http-server public -p 8080 -c-1",
+    "test-mindar": "npm run serve-local"
   },
   "dependencies": {
     "@emotion/react": "^11.14.0",
@@ -20,6 +22,7 @@
     "aframe": "^1.7.1",
     "aframe-ar": "^0.2.1-a",
     "ar.js": "^2.2.2",
+    "mind-ar": "^1.2.5",
     "react": "^19.1.0",
     "react-dom": "^19.1.0"
   },
