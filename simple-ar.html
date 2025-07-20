@@ -692,35 +692,38 @@
         .youtube-content {
             background: rgba(0, 0, 0, 0.9);
             border-radius: 20px;
-            padding: 40px;
+            padding: 20px;
             text-align: center;
             border: 3px solid #ff6b35;
             backdrop-filter: blur(15px);
+            width: 90%;
+            max-width: 640px;
+            height: 80%;
+            max-height: 500px;
+            display: flex;
+            flex-direction: column;
         }
 
-        .youtube-text {
-            font-size: 24px;
+        .youtube-header {
+            font-size: 20px;
             color: white;
-            margin-bottom: 20px;
+            margin-bottom: 15px;
             font-weight: 600;
         }
 
-        .youtube-play-btn {
-            background: linear-gradient(45deg, #ff6b35, #f7931e);
-            color: white;
-            border: none;
-            padding: 15px 30px;
-            border-radius: 25px;
-            cursor: pointer;
-            font-size: 18px;
-            font-weight: 600;
-            transition: all 0.3s ease;
-            box-shadow: 0 4px 15px rgba(255, 107, 53, 0.3);
+        .youtube-iframe {
+            width: 100%;
+            height: 100%;
+            border-radius: 15px;
+            flex: 1;
+            min-height: 300px;
         }
 
-        .youtube-play-btn:hover {
-            transform: translateY(-3px);
-            box-shadow: 0 6px 20px rgba(255, 107, 53, 0.5);
+        .youtube-info {
+            font-size: 12px;
+            color: rgba(255, 255, 255, 0.8);
+            margin-top: 10px;
+            font-style: italic;
         }
     </style>
 </head>
@@ -889,8 +892,15 @@
         <!-- 유튜브 폴백 오버레이 -->
         <div class="youtube-overlay" id="youtubeOverlay">
             <div class="youtube-content">
-                <div class="youtube-text">📺 폴백 영상</div>
-                <button class="youtube-play-btn" onclick="openYouTubeVideo()">▶ 유튜브에서 보기</button>
+                <div class="youtube-header">📺 AR 폴백 영상</div>
+                <iframe id="youtubeIframe" 
+                        class="youtube-iframe"
+                        src="" 
+                        frameborder="0" 
+                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
+                        allowfullscreen>
+                </iframe>
+                <div class="youtube-info">원본 비디오 재생 실패로 대체 영상을 재생합니다</div>
             </div>
         </div>
 
@@ -2061,12 +2071,30 @@
         function showYouTubeOverlay() {
             const arOverlayContainer = document.getElementById('arOverlayContainer');
             const youtubeOverlay = document.getElementById('youtubeOverlay');
+            const youtubeIframe = document.getElementById('youtubeIframe');
+            
+            console.log('유튜브 폴백 영상 자동 재생 시작');
             
             // 비디오 오버레이 숨기고 유튜브 오버레이 표시
             arOverlayContainer.classList.remove('active');
             youtubeOverlay.classList.add('active');
             
-            document.getElementById('arStatus').textContent = '📺 폴백 영상 준비됨';
+            // 유튜브 영상 자동 재생 설정
+            const youtubeVideoId = 'MX_UceuxveA'; // 유튜브 비디오 ID
+            const youtubeEmbedUrl = `https://www.youtube.com/embed/${youtubeVideoId}?autoplay=1&mute=1&loop=1&playlist=${youtubeVideoId}&rel=0&modestbranding=1&showinfo=0&controls=1`;
+            
+            youtubeIframe.src = youtubeEmbedUrl;
+            
+            document.getElementById('arStatus').textContent = '📺 폴백 영상 재생 중';
+            
+            console.log('유튜브 임베드 URL:', youtubeEmbedUrl);
+            
+            // 사용자가 터치하면 음소거 해제
+            youtubeIframe.addEventListener('click', () => {
+                const unmutedUrl = `https://www.youtube.com/embed/${youtubeVideoId}?autoplay=1&mute=0&loop=1&playlist=${youtubeVideoId}&rel=0&modestbranding=1&showinfo=0&controls=1`;
+                youtubeIframe.src = unmutedUrl;
+                document.getElementById('arStatus').textContent = '📺 폴백 영상 재생 중 (소리 ON)';
+            }, { once: true });
         }
 
         function calculateARImagePosition(arData, overlayVideo, overlayFrame) {
@@ -2501,29 +2529,9 @@
         }
 
         function openYouTubeVideo() {
-            // 유튜브 영상을 새 탭에서 열기
-            const youtubeUrl = 'https://www.youtube.com/watch?v=MX_UceuxveA';
-            window.open(youtubeUrl, '_blank');
-            
-            // AR 상태 업데이트
-            document.getElementById('arStatus').textContent = '📺 유튜브 영상이 새 탭에서 열렸습니다';
-            
-            // 폴백 UI 업데이트
-            const fallbackText = document.getElementById('fallback-text');
-            fallbackText.setAttribute('value', '✅ 유튜브 영상 열림\n새 탭을 확인하세요');
-            fallbackText.setAttribute('color', '#4CAF50');
-            
-            // 3초 후 폴백 UI 숨김
-            setTimeout(() => {
-                const youtubeFallback = document.getElementById('youtube-fallback');
-                const arOverlay = document.getElementById('ar-overlay');
-                
-                youtubeFallback.setAttribute('visible', false);
-                fallbackText.setAttribute('visible', false);
-                arOverlay.setAttribute('visible', false);
-                
-                document.getElementById('arStatus').textContent = '다른 이미지를 스캔해보세요';
-            }, 3000);
+            // 이 함수는 더 이상 사용되지 않지만 호환성을 위해 유지
+            console.log('openYouTubeVideo 함수 호출됨 - showYouTubeOverlay로 리다이렉트');
+            showYouTubeOverlay();
         }
 
         function enableAudio() {
@@ -2569,6 +2577,12 @@
                 overlayVideo.pause();
                 overlayVideo.currentTime = 0;
                 overlayVideo.src = '';
+            }
+            
+            // 유튜브 iframe 정리
+            const youtubeIframe = document.getElementById('youtubeIframe');
+            if (youtubeIframe) {
+                youtubeIframe.src = '';
             }
             
             if (scanTimeout) {
