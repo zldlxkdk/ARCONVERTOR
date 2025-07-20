@@ -1122,28 +1122,27 @@
             </a-assets>
 
             <a-entity id="ar-target" mindar-image-target="targetIndex: 0">
-                <!-- YouTube iframe을 텍스처로 사용하는 평면 -->
+                <!-- 3D YouTube 영상 평면 (AR 이미지에 직접 붙음) -->
                 <a-plane 
-                    id="youtube-ar-plane"
+                    id="youtube-3d-plane"
                     width="1.6" 
                     height="0.9" 
-                    position="0 0 0.1"
+                    position="0 0 0.05"
                     rotation="0 0 0"
-                    material="color: #000; opacity: 1"
-                    visible="false">
+                    material="color: #000; opacity: 0.9; transparent: true"
+                    visible="false"
+                    class="youtube-3d-element">
                 </a-plane>
                 
-                <!-- 비디오 재생용 평면 (로컬 비디오용) -->
-                <a-video 
-                    src="#ar-video" 
-                    position="0 0 0.1" 
+                <!-- YouTube 영상 텍스처를 위한 HTML 요소 -->
+                <a-entity
+                    id="youtube-html-element"
+                    position="0 0 0.06"
                     rotation="0 0 0"
-                    width="1.6" 
-                    height="0.9"
-                    material="transparent: false; alphaTest: 0; shader: flat; side: double"
+                    scale="1.6 0.9 1"
                     visible="false"
-                    id="ar-video-plane">
-                </a-video>
+                    class="youtube-3d-element">
+                </a-entity>
                 
                 <!-- 로딩 인디케이터 -->
                 <a-text
@@ -1184,8 +1183,8 @@
         </a-scene>
         </div>
 
-        <!-- 실시간 YouTube 오버레이 (AR 이미지 감지 시) -->
-        <div id="realtime-youtube-overlay" style="
+        <!-- 3D YouTube 영상 컨테이너 (AR 이미지에 직접 붙음) -->
+        <div id="youtube-3d-container" style="
             position: fixed;
             top: 0;
             left: 0;
@@ -1195,14 +1194,16 @@
             display: none;
             pointer-events: none;
         ">
-            <iframe id="realtime-youtube-iframe" 
+            <!-- 3D YouTube iframe -->
+            <iframe id="youtube-3d-iframe" 
                     style="
                         position: absolute;
-                        border: 3px solid #ff6b35;
-                        border-radius: 12px;
-                        box-shadow: 0 0 30px rgba(255, 107, 53, 0.8);
+                        border: 2px solid #ff6b35;
+                        border-radius: 8px;
+                        box-shadow: 0 0 20px rgba(255, 107, 53, 0.6);
                         pointer-events: auto;
-                        transition: all 0.1s ease-out;
+                        transform-origin: center center;
+                        transition: transform 0.1s ease-out;
                     "
                     src="" 
                     frameborder="0" 
@@ -5271,7 +5272,7 @@
                 // 모든 AR 요소 숨기기
                 document.querySelector('#loading-text').setAttribute('visible', false);
                 document.querySelector('#control-text').setAttribute('visible', false);
-                document.querySelector('#youtube-ar-plane').setAttribute('visible', false);
+                document.querySelector('#youtube-3d-plane').setAttribute('visible', false);
             });
             
             // 클릭 이벤트 (소리 활성화)
@@ -5301,19 +5302,20 @@
                 document.getElementById('arStatus').textContent = '📷 카메라로 생성된 AR 이미지를 비춰주세요';
             });
             
-            // 실시간 위치 추적 함수
+            // 실시간 위치 추적 함수 (3D)
             function startRealTimeTracking() {
-                console.log('🔄 실시간 AR 위치 추적 시작');
+                console.log('🔄 실시간 3D AR 위치 추적 시작');
                 
                 if (trackingAnimation) {
                     cancelAnimationFrame(trackingAnimation);
                 }
                 
-                const iframe = document.getElementById('realtime-youtube-iframe');
+                const iframe = document.getElementById('youtube-3d-iframe');
                 
                 function updatePosition() {
                     if (isTargetDetected && iframe) {
-                        positionYouTubeOverlay(iframe);
+                        // 3D 위치 추적은 start3DYouTubeTracking에서 처리됨
+                        // 여기서는 추가적인 업데이트만 수행
                     }
                     trackingAnimation = requestAnimationFrame(updatePosition);
                 }
@@ -5331,31 +5333,62 @@
         }
         
         function showYouTubeOnARImage(arData) {
-            console.log('📺 AR 이미지 위에 YouTube 영상 표시');
-            
-            // 실시간 YouTube 오버레이 표시
-            const overlay = document.getElementById('realtime-youtube-overlay');
-            const iframe = document.getElementById('realtime-youtube-iframe');
+            console.log('📺 3D AR 이미지 위에 YouTube 영상 표시');
             
             // YouTube URL 생성 (소리 없음으로 시작)
             const youtubeUrl = extractYouTubeUrl(arData.videoUrl || 'https://www.youtube.com/watch?v=dQw4w9WgXcQ');
             const embedUrl = `https://www.youtube.com/embed/${youtubeUrl}?autoplay=1&mute=1&loop=1&playlist=${youtubeUrl}&rel=0&modestbranding=1&controls=1`;
             
-            iframe.src = embedUrl;
-            
-            // AR 이미지에 맞는 위치와 크기로 설정
-            positionYouTubeOverlay(iframe);
-            
-            overlay.style.display = 'block';
-            
-            // AR 평면도 표시
-            const youtubePlane = document.querySelector('#youtube-ar-plane');
+            // 3D YouTube 평면 표시
+            const youtubePlane = document.querySelector('#youtube-3d-plane');
             youtubePlane.setAttribute('visible', true);
-            youtubePlane.setAttribute('material', 'color: #000; opacity: 0.8');
+            youtubePlane.setAttribute('material', 'color: #000; opacity: 0.9; transparent: true');
+            
+            // 3D YouTube iframe 생성 및 배치
+            create3DYouTubeIframe(embedUrl);
+            
+            console.log('✅ 3D YouTube 영상 배치 완료');
         }
         
-        function positionYouTubeOverlay(iframe) {
-            // mindAR에서 감지된 이미지 위치에 맞게 YouTube iframe 위치 설정
+        function create3DYouTubeIframe(embedUrl) {
+            console.log('🎬 3D YouTube iframe 생성 중...');
+            
+            // 기존 iframe 제거
+            const existingIframe = document.querySelector('#youtube-3d-iframe');
+            if (existingIframe) {
+                existingIframe.remove();
+            }
+            
+            // 새로운 3D iframe 생성
+            const container = document.getElementById('youtube-3d-container');
+            const iframe = document.createElement('iframe');
+            iframe.id = 'youtube-3d-iframe';
+            iframe.src = embedUrl;
+            iframe.style.cssText = `
+                position: absolute;
+                border: 2px solid #ff6b35;
+                border-radius: 8px;
+                box-shadow: 0 0 20px rgba(255, 107, 53, 0.6);
+                pointer-events: auto;
+                transform-origin: center center;
+                transition: transform 0.1s ease-out;
+                width: 320px;
+                height: 180px;
+            `;
+            iframe.setAttribute('frameborder', '0');
+            iframe.setAttribute('allow', 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share');
+            iframe.setAttribute('allowfullscreen', '');
+            
+            container.appendChild(iframe);
+            container.style.display = 'block';
+            
+            // 3D 위치 추적 시작
+            start3DYouTubeTracking(iframe);
+        }
+        
+        function start3DYouTubeTracking(iframe) {
+            console.log('🔄 3D YouTube 위치 추적 시작');
+            
             const target = document.querySelector('#ar-target');
             const camera = document.querySelector('[camera]');
             
@@ -5364,80 +5397,104 @@
                 return;
             }
             
-            try {
-                // A-Frame 3D 월드 좌표를 화면 좌표로 변환
-                const targetPosition = target.object3D.position.clone();
-                const cameraMatrix = camera.object3D.matrixWorldInverse;
-                const screenPosition = targetPosition.clone();
+            function update3DPosition() {
+                try {
+                    // A-Frame 3D 월드 좌표를 화면 좌표로 변환
+                    const targetPosition = target.object3D.position.clone();
+                    const cameraMatrix = camera.object3D.matrixWorldInverse;
+                    const screenPosition = targetPosition.clone();
+                    
+                    // 카메라 공간으로 변환
+                    screenPosition.applyMatrix4(cameraMatrix);
+                    
+                    // 투영 변환 (3D -> 2D)
+                    const projectionMatrix = camera.components.camera.camera.projectionMatrix;
+                    screenPosition.applyMatrix4(projectionMatrix);
+                    
+                    // 화면 크기 기준으로 정규화된 좌표를 실제 픽셀로 변환
+                    const screenWidth = window.innerWidth;
+                    const screenHeight = window.innerHeight;
+                    
+                    const x = (screenPosition.x + 1) * screenWidth / 2;
+                    const y = (-screenPosition.y + 1) * screenHeight / 2;
+                    
+                    // AR 이미지의 3D 변환 정보 가져오기
+                    const targetRotation = target.object3D.rotation;
+                    const targetScale = target.object3D.scale;
+                    
+                    // YouTube iframe 크기 (AR 평면과 일치)
+                    const overlayWidth = Math.min(screenWidth * 0.4, 320);
+                    const overlayHeight = overlayWidth * 9 / 16;
+                    
+                    // AR 이미지 위치에 정확히 맞춤
+                    iframe.style.left = (x - overlayWidth / 2) + 'px';
+                    iframe.style.top = (y - overlayHeight / 2) + 'px';
+                    iframe.style.width = overlayWidth + 'px';
+                    iframe.style.height = overlayHeight + 'px';
+                    
+                    // 3D 회전 적용 (Z축 회전만)
+                    const rotationZ = targetRotation.z * (180 / Math.PI);
+                    iframe.style.transform = `rotateZ(${rotationZ}deg)`;
+                    
+                    // 3D 스케일 적용
+                    const scaleX = targetScale.x;
+                    const scaleY = targetScale.y;
+                    iframe.style.transform += ` scale(${scaleX}, ${scaleY})`;
+                    
+                    // 디버그 정보 업데이트
+                    updateDebugInfo({
+                        status: '3D AR 이미지 추적 중',
+                        position: `X: ${Math.round(x)}, Y: ${Math.round(y)}, R: ${Math.round(rotationZ)}°`,
+                        size: `${overlayWidth}x${overlayHeight} (S: ${scaleX.toFixed(2)}x${scaleY.toFixed(2)})`
+                    });
+                    
+                } catch (error) {
+                    console.error('3D YouTube 위치 계산 오류:', error);
+                }
                 
-                // 카메라 공간으로 변환
-                screenPosition.applyMatrix4(cameraMatrix);
-                
-                // 투영 변환 (3D -> 2D)
-                const projectionMatrix = camera.components.camera.camera.projectionMatrix;
-                screenPosition.applyMatrix4(projectionMatrix);
-                
-                // 화면 크기 기준으로 정규화된 좌표를 실제 픽셀로 변환
-                const screenWidth = window.innerWidth;
-                const screenHeight = window.innerHeight;
-                
-                const x = (screenPosition.x + 1) * screenWidth / 2;
-                const y = (-screenPosition.y + 1) * screenHeight / 2;
-                
-                // YouTube iframe 크기 (AR 평면과 일치)
-                const overlayWidth = Math.min(screenWidth * 0.4, 320);
-                const overlayHeight = overlayWidth * 9 / 16;
-                
-                // AR 이미지 위치에 정확히 맞춤
-                iframe.style.left = (x - overlayWidth / 2) + 'px';
-                iframe.style.top = (y - overlayHeight / 2) + 'px';
-                iframe.style.width = overlayWidth + 'px';
-                iframe.style.height = overlayHeight + 'px';
-                
-                console.log('📍 YouTube 오버레이 위치:', { 
-                    x, y, 
-                    width: overlayWidth, 
-                    height: overlayHeight,
-                    left: (x - overlayWidth / 2),
-                    top: (y - overlayHeight / 2)
-                });
-                
-                // 디버그 정보 업데이트
-                updateDebugInfo({
-                    status: 'AR 이미지 추적 중',
-                    position: `X: ${Math.round(x)}, Y: ${Math.round(y)}`,
-                    size: `${overlayWidth}x${overlayHeight}`
-                });
-                
-            } catch (error) {
-                console.error('YouTube 오버레이 위치 계산 오류:', error);
-                // 폴백: 중앙 정렬
-                const screenWidth = window.innerWidth;
-                const screenHeight = window.innerHeight;
-                const overlayWidth = Math.min(screenWidth * 0.6, 400);
-                const overlayHeight = overlayWidth * 9 / 16;
-                
-                iframe.style.left = (screenWidth - overlayWidth) / 2 + 'px';
-                iframe.style.top = (screenHeight - overlayHeight) / 2 + 'px';
-                iframe.style.width = overlayWidth + 'px';
-                iframe.style.height = overlayHeight + 'px';
+                // 다음 프레임에서 업데이트
+                requestAnimationFrame(update3DPosition);
             }
+            
+            // 추적 시작
+            update3DPosition();
         }
         
         function hideYouTubeAROverlay() {
-            console.log('📵 YouTube AR 오버레이 숨김');
+            console.log('📵 3D YouTube AR 오버레이 숨김');
             
-            const overlay = document.getElementById('realtime-youtube-overlay');
-            const iframe = document.getElementById('realtime-youtube-iframe');
+            const container = document.getElementById('youtube-3d-container');
+            const iframe = document.getElementById('youtube-3d-iframe');
+            const youtubePlane = document.querySelector('#youtube-3d-plane');
             
-            overlay.style.display = 'none';
-            iframe.src = '';
+            // 3D YouTube 평면 숨기기
+            if (youtubePlane) {
+                youtubePlane.setAttribute('visible', false);
+            }
+            
+            // 3D YouTube 컨테이너 숨기기
+            if (container) {
+                container.style.display = 'none';
+            }
+            
+            // iframe 제거
+            if (iframe) {
+                iframe.remove();
+            }
+            
+            // 디버그 정보 숨기기
+            hideDebugInfo();
         }
         
         function enableSoundForYouTube() {
-            console.log('🔊 YouTube 영상 소리 활성화');
+            console.log('🔊 3D YouTube 영상 소리 활성화');
             
-            const iframe = document.getElementById('realtime-youtube-iframe');
+            const iframe = document.getElementById('youtube-3d-iframe');
+            if (!iframe) {
+                console.warn('3D YouTube iframe을 찾을 수 없음');
+                return;
+            }
+            
             const currentSrc = iframe.src;
             
             if (currentSrc.includes('mute=1')) {
@@ -5445,7 +5502,7 @@
                 const newSrc = currentSrc.replace('mute=1', 'mute=0');
                 iframe.src = newSrc;
                 
-                console.log('✅ YouTube 소리 활성화 완료');
+                console.log('✅ 3D YouTube 소리 활성화 완료');
             }
         }
         
