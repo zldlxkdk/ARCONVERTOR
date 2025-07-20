@@ -382,6 +382,7 @@
             border-radius: 15px;
             overflow: hidden;
             margin: 15px 0;
+            display: none;
         }
 
         .scanner-video {
@@ -725,6 +726,95 @@
             margin-top: 10px;
             font-style: italic;
         }
+
+        /* 전체 화면 스캐너 */
+        .fullscreen-scanner {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: #000;
+            z-index: 1500;
+            display: none;
+        }
+
+        .fullscreen-scanner.active {
+            display: block;
+        }
+
+        .scanner-video-fullscreen {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .scanner-overlay-fullscreen {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 80%;
+            height: 60%;
+            border: 3px solid #ff6b35;
+            border-radius: 15px;
+            box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.3);
+            animation: scanPulse 2s infinite;
+        }
+
+        .scanner-controls-fullscreen {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            right: 20px;
+            z-index: 1501;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .scan-status-fullscreen {
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 12px 20px;
+            border-radius: 25px;
+            font-size: 16px;
+            font-weight: 600;
+            backdrop-filter: blur(10px);
+            max-width: 70%;
+        }
+
+        .scan-close-btn {
+            background: #ff6b35;
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 25px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+
+        .scan-close-btn:hover {
+            background: #e55a2e;
+            transform: scale(1.05);
+        }
+
+        .scan-instructions-fullscreen {
+            position: absolute;
+            bottom: 30px;
+            left: 20px;
+            right: 20px;
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 20px;
+            border-radius: 15px;
+            text-align: center;
+            font-size: 16px;
+            backdrop-filter: blur(10px);
+            border: 2px solid #ff6b35;
+        }
     </style>
 </head>
 <body>
@@ -863,10 +953,27 @@
                     </div>
                 </div>
 
-                <button class="btn" id="startScanBtn" onclick="startImageScan()">
+                <button class="btn" id="startScanBtn" onclick="startFullscreenScan()">
                     📷 이미지 스캔 시작
                 </button>
             </div>
+        </div>
+    </div>
+
+    <!-- 전체 화면 스캐너 -->
+    <div class="fullscreen-scanner" id="fullscreenScanner">
+        <video id="scannerVideoFullscreen" class="scanner-video-fullscreen" autoplay muted playsinline></video>
+        
+        <div class="scanner-controls-fullscreen">
+            <div class="scan-status-fullscreen" id="scanStatusFullscreen">카메라 준비 중...</div>
+            <button class="scan-close-btn" onclick="closeFullscreenScan()">✕ 닫기</button>
+        </div>
+        
+        <div class="scanner-overlay-fullscreen"></div>
+        
+        <div class="scan-instructions-fullscreen" id="scanInstructionsFullscreen">
+            생성된 AR 이미지를 프레임 안에 맞춰주세요<br>
+            <span style="opacity: 0.7;">3초 후 자동 감지</span>
         </div>
     </div>
 
@@ -1422,6 +1529,107 @@
             }
         }
 
+        async function startFullscreenScan() {
+            console.log('전체 화면 스캔 시작');
+            
+            const fullscreenScanner = document.getElementById('fullscreenScanner');
+            const scanStatusFullscreen = document.getElementById('scanStatusFullscreen');
+            const scanInstructionsFullscreen = document.getElementById('scanInstructionsFullscreen');
+            const scannerVideoFullscreen = document.getElementById('scannerVideoFullscreen');
+            
+            // 전체 화면 스캐너 표시
+            fullscreenScanner.classList.add('active');
+            scanStatusFullscreen.textContent = '카메라 권한을 요청하고 있습니다...';
+            
+            try {
+                let stream = null;
+                
+                try {
+                    // 1차 시도: 후면 카메라 (환경)
+                    stream = await navigator.mediaDevices.getUserMedia({ 
+                        video: { 
+                            facingMode: { ideal: 'environment' },
+                            width: { ideal: 1920, min: 1280 },
+                            height: { ideal: 1080, min: 720 }
+                        } 
+                    });
+                } catch (envError) {
+                    console.warn('후면 카메라 접근 실패:', envError.message);
+                    
+                    try {
+                        // 2차 시도: 전면 카메라
+                        scanStatusFullscreen.textContent = '전면 카메라로 시도 중...';
+                        
+                        stream = await navigator.mediaDevices.getUserMedia({ 
+                            video: { 
+                                facingMode: { ideal: 'user' },
+                                width: { ideal: 1920, min: 1280 },
+                                height: { ideal: 1080, min: 720 }
+                            } 
+                        });
+                    } catch (userError) {
+                        console.warn('전면 카메라 접근 실패:', userError.message);
+                        
+                        try {
+                            // 3차 시도: 기본 비디오
+                            scanStatusFullscreen.textContent = '기본 카메라로 시도 중...';
+                            
+                            stream = await navigator.mediaDevices.getUserMedia({ 
+                                video: {
+                                    width: { ideal: 1280, min: 640 },
+                                    height: { ideal: 720, min: 480 }
+                                }
+                            });
+                        } catch (basicError) {
+                            console.warn('기본 카메라 접근 실패:', basicError.message);
+                            
+                            try {
+                                // 4차 시도: 최소 설정
+                                scanStatusFullscreen.textContent = '최소 설정으로 시도 중...';
+                                stream = await navigator.mediaDevices.getUserMedia({ video: true });
+                            } catch (finalError) {
+                                throw new Error(`모든 카메라 접근 시도 실패: ${finalError.message}`);
+                            }
+                        }
+                    }
+                }
+                
+                if (stream) {
+                    scannerVideoFullscreen.srcObject = stream;
+                    
+                    // 비디오 스트림이 실제로 시작되었는지 확인
+                    await new Promise((resolve, reject) => {
+                        scannerVideoFullscreen.onloadedmetadata = () => {
+                            scannerVideoFullscreen.play().then(resolve).catch(reject);
+                        };
+                        scannerVideoFullscreen.onerror = reject;
+                        
+                        // 5초 타임아웃
+                        setTimeout(() => reject(new Error('비디오 시작 시간 초과')), 5000);
+                    });
+                    
+                    // 성공 시 안내 메시지 업데이트
+                    scanStatusFullscreen.textContent = '📷 스캔 준비 완료';
+                    scanInstructionsFullscreen.innerHTML = `
+                        생성된 AR 이미지를 프레임 안에 맞춰주세요<br>
+                        <span style="opacity: 0.7;">3초 후 자동 감지</span>
+                    `;
+                    
+                    // 3초 후 자동 감지
+                    scanTimeout = setTimeout(() => {
+                        console.log('전체 화면에서 3초 자동 감지 시작');
+                        attemptImageDetectionFullscreen();
+                    }, 3000);
+                } else {
+                    throw new Error('카메라 스트림을 가져올 수 없습니다');
+                }
+                
+            } catch (error) {
+                console.error('전체 화면 카메라 접근 실패:', error);
+                showFullscreenScanError(error);
+            }
+        }
+
         async function startImageScan() {
             try {
                 const container = document.getElementById('scannerContainer');
@@ -1661,6 +1869,206 @@
             // 이 함수는 "카메라 없이 체험" 버튼용
             console.log('수동 시뮬레이션 감지 시작');
             attemptImageDetection();
+        }
+
+        function attemptImageDetectionFullscreen() {
+            const arKeys = Object.keys(localStorage).filter(key => key.startsWith('arData_'));
+            if (arKeys.length === 0) {
+                document.getElementById('scanInstructionsFullscreen').innerHTML = `
+                    ❌ 스캔할 AR 이미지가 없습니다<br>
+                    <span style="color: #ff6b35;">먼저 AR 이미지를 생성해주세요</span>
+                `;
+                return;
+            }
+            
+            console.log('전체 화면에서 이미지 감지 시도, 저장된 AR 데이터:', arKeys.length + '개');
+            
+            // 전체 화면에서 실제 이미지 인식 시도
+            attemptRealImageDetectionFullscreen(arKeys);
+        }
+
+        function attemptRealImageDetectionFullscreen(arKeys) {
+            const video = document.getElementById('scannerVideoFullscreen');
+            const scanStatusFullscreen = document.getElementById('scanStatusFullscreen');
+            const scanInstructionsFullscreen = document.getElementById('scanInstructionsFullscreen');
+            
+            if (!video || !video.srcObject) {
+                console.log('전체 화면 카메라가 없음, 직접 감지 모드로 실행');
+                
+                const latestKey = arKeys[arKeys.length - 1];
+                const arId = latestKey.replace('arData_', '');
+                
+                scanInstructionsFullscreen.innerHTML = `
+                    🎯 이미지 자동 감지!<br>
+                    <span style="color: #4CAF50;">AR 영상을 로딩합니다...</span>
+                `;
+                
+                setTimeout(() => {
+                    // 전체 화면 스캐너 닫고 AR 뷰어로 이동
+                    closeFullscreenScan();
+                    loadAndPlayAR(arId);
+                }, 1000);
+                return;
+            }
+
+            scanInstructionsFullscreen.innerHTML = `
+                이미지 인식 중...<br>
+                <span style="opacity: 0.7;">저장된 ${arKeys.length}개 이미지 중 검색</span>
+            `;
+
+            // 카메라에서 프레임 캡처 및 분석
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+            canvas.width = video.videoWidth || 1280;
+            canvas.height = video.videoHeight || 720;
+
+            let detectionCount = 0;
+            const maxDetections = 20; // 2초
+
+            const detectInterval = setInterval(() => {
+                detectionCount++;
+
+                try {
+                    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+                    const currentFrame = canvas.toDataURL('image/jpeg', 0.8);
+
+                    // 저장된 AR 이미지들과 비교
+                    let bestMatch = null;
+                    let bestScore = 0;
+
+                    arKeys.forEach(key => {
+                        const arData = JSON.parse(localStorage.getItem(key));
+                        const similarity = compareImages(currentFrame, arData.targetImage);
+
+                        if (similarity > bestScore) {
+                            bestScore = similarity;
+                            bestMatch = {
+                                id: key.replace('arData_', ''),
+                                score: similarity,
+                                data: arData
+                            };
+                        }
+                    });
+
+                    console.log(`전체화면 프레임 ${detectionCount}: 최고 유사도 ${Math.round(bestScore * 100)}%`);
+
+                    // 인식 임계값 (50% 이상 유사도)
+                    if (bestMatch && bestScore > 0.5) {
+                        clearInterval(detectInterval);
+
+                        scanInstructionsFullscreen.innerHTML = `
+                            🎯 이미지 매칭 성공! (${Math.round(bestScore * 100)}%)<br>
+                            <span style="color: #4CAF50;">AR 영상을 로딩합니다...</span>
+                        `;
+
+                        setTimeout(() => {
+                            closeFullscreenScan();
+                            loadAndPlayAR(bestMatch.id);
+                        }, 1000);
+
+                    } else if (detectionCount >= maxDetections) {
+                        clearInterval(detectInterval);
+
+                        if (bestMatch) {
+                            scanInstructionsFullscreen.innerHTML = `
+                                📷 유사한 이미지 발견 (${Math.round(bestScore * 100)}%)<br>
+                                <span style="color: #ff6b35;">부분 매칭으로 실행합니다...</span>
+                            `;
+
+                            setTimeout(() => {
+                                closeFullscreenScan();
+                                loadAndPlayAR(bestMatch.id);
+                            }, 1000);
+                        } else {
+                            scanInstructionsFullscreen.innerHTML = `
+                                🎯 자동 감지 모드<br>
+                                <span style="color: #4CAF50;">최신 AR 이미지로 실행합니다...</span>
+                            `;
+
+                            const latestKey = arKeys[arKeys.length - 1];
+                            const arId = latestKey.replace('arData_', '');
+
+                            setTimeout(() => {
+                                closeFullscreenScan();
+                                loadAndPlayAR(arId);
+                            }, 1000);
+                        }
+                    } else {
+                        scanInstructionsFullscreen.innerHTML = `
+                            이미지 분석 중... (${detectionCount}/${maxDetections})<br>
+                            <span style="opacity: 0.7;">최고 유사도: ${Math.round(bestScore * 100)}%</span>
+                        `;
+                    }
+                } catch (error) {
+                    console.error('전체화면 프레임 분석 오류:', error);
+                    clearInterval(detectInterval);
+
+                    scanInstructionsFullscreen.innerHTML = `
+                        🎯 자동 감지 완료<br>
+                        <span style="color: #4CAF50;">AR 영상을 로딩합니다...</span>
+                    `;
+
+                    const latestKey = arKeys[arKeys.length - 1];
+                    const arId = latestKey.replace('arData_', '');
+
+                    setTimeout(() => {
+                        closeFullscreenScan();
+                        loadAndPlayAR(arId);
+                    }, 1000);
+                }
+
+            }, 100);
+        }
+
+        function showFullscreenScanError(error) {
+            const scanStatusFullscreen = document.getElementById('scanStatusFullscreen');
+            const scanInstructionsFullscreen = document.getElementById('scanInstructionsFullscreen');
+            
+            let errorMessage = '카메라 접근 실패';
+            let helpMessage = '';
+            
+            if (error.name === 'NotAllowedError' || error.message.includes('Permission denied')) {
+                errorMessage = '카메라 권한이 거부되었습니다';
+                helpMessage = '브라우저 설정에서 카메라 권한을 허용해주세요';
+            } else if (error.name === 'NotFoundError') {
+                errorMessage = '카메라를 찾을 수 없습니다';
+                helpMessage = '다른 앱이 카메라를 사용 중인지 확인해주세요';
+            } else {
+                errorMessage = '카메라 초기화 실패';
+                helpMessage = '브라우저를 새로고침하거나 다른 브라우저를 사용해보세요';
+            }
+            
+            scanStatusFullscreen.textContent = `❌ ${errorMessage}`;
+            scanInstructionsFullscreen.innerHTML = `
+                ${helpMessage}<br>
+                <button class="btn" onclick="closeFullscreenScan()" style="margin-top: 15px; background: #ff6b35; color: white; border: none; padding: 10px 20px; border-radius: 20px;">
+                    돌아가기
+                </button>
+            `;
+        }
+
+        function closeFullscreenScan() {
+            console.log('전체 화면 스캔 닫기');
+            
+            const fullscreenScanner = document.getElementById('fullscreenScanner');
+            const scannerVideoFullscreen = document.getElementById('scannerVideoFullscreen');
+            
+            // 전체 화면 스캐너 숨김
+            fullscreenScanner.classList.remove('active');
+            
+            // 카메라 스트림 정리
+            if (scannerVideoFullscreen && scannerVideoFullscreen.srcObject) {
+                scannerVideoFullscreen.srcObject.getTracks().forEach(track => track.stop());
+                scannerVideoFullscreen.srcObject = null;
+            }
+            
+            // 타임아웃 정리
+            if (scanTimeout) {
+                clearTimeout(scanTimeout);
+                scanTimeout = null;
+            }
+            
+            console.log('전체 화면 스캔 완전히 정리됨');
         }
 
         function attemptRealImageDetection(arKeys) {
