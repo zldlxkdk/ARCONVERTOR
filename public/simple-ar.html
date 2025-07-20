@@ -1037,9 +1037,12 @@
                             border: 3px solid #ff6b35;
                             border-radius: 12px;
                             box-shadow: 0 0 25px rgba(255, 107, 53, 0.8);
-                            background: rgba(0, 0, 0, 0.9);
+                            background: transparent;
                             z-index: 1002;
                             display: none;
+                            object-fit: cover;
+                            width: 100%;
+                            height: 100%;
                         "></video>
                         
                         <!-- AR 프레임 -->
@@ -1146,9 +1149,12 @@
                     border: 3px solid #ff6b35;
                     border-radius: 12px;
                     box-shadow: 0 0 25px rgba(255, 107, 53, 0.8);
-                    background: rgba(0, 0, 0, 0.9);
+                    background: transparent;
                     z-index: 1002;
                     display: none;
+                    object-fit: cover;
+                    width: 100%;
+                    height: 100%;
                 "></video>
                 
                 <!-- AR 프레임 -->
@@ -3726,6 +3732,12 @@
             scannerOverlayVideo.style.width = videoWidth + 'px';
             scannerOverlayVideo.style.height = videoHeight + 'px';
             scannerOverlayVideo.style.display = 'block';
+            scannerOverlayVideo.style.background = 'transparent';
+            scannerOverlayVideo.style.objectFit = 'cover';
+            scannerOverlayVideo.style.border = '3px solid #ff6b35';
+            scannerOverlayVideo.style.borderRadius = '12px';
+            scannerOverlayVideo.style.boxShadow = '0 0 25px rgba(255, 107, 53, 0.8)';
+            scannerOverlayVideo.style.zIndex = '1002';
             
             // 프레임 위치 설정 (비디오보다 약간 크게)
             const frameMargin = 10;
@@ -3804,6 +3816,17 @@
             scannerOverlayVideo.setAttribute('playsinline', 'true');
             scannerOverlayVideo.setAttribute('controls', 'false');
             
+            // 비디오 스타일 강제 설정
+            scannerOverlayVideo.style.background = 'transparent';
+            scannerOverlayVideo.style.objectFit = 'cover';
+            scannerOverlayVideo.style.width = '100%';
+            scannerOverlayVideo.style.height = '100%';
+            scannerOverlayVideo.style.display = 'block';
+            scannerOverlayVideo.style.border = '3px solid #ff6b35';
+            scannerOverlayVideo.style.borderRadius = '12px';
+            scannerOverlayVideo.style.boxShadow = '0 0 25px rgba(255, 107, 53, 0.8)';
+            scannerOverlayVideo.style.zIndex = '1002';
+            
             // 비디오 소스 설정
             if (arData.videoData) {
                 console.log('🎬 비디오 소스 설정 중...');
@@ -3839,6 +3862,23 @@
                     scannerOverlayVideo.onloadeddata = () => {
                         console.log('🎬 스캔 비디오 데이터 로드 완료');
                         scannerArStatus.textContent = '🎬 AR 영상 재생 중';
+                        
+                        // 비디오 스타일 최종 확인
+                        scannerOverlayVideo.style.background = 'transparent';
+                        scannerOverlayVideo.style.objectFit = 'cover';
+                        scannerOverlayVideo.style.display = 'block';
+                        scannerOverlayVideo.style.border = '3px solid #ff6b35';
+                        scannerOverlayVideo.style.borderRadius = '12px';
+                        scannerOverlayVideo.style.boxShadow = '0 0 25px rgba(255, 107, 53, 0.8)';
+                        scannerOverlayVideo.style.zIndex = '1002';
+                        
+                        console.log('🎬 비디오 스타일 적용 완료:', {
+                            background: scannerOverlayVideo.style.background,
+                            objectFit: scannerOverlayVideo.style.objectFit,
+                            display: scannerOverlayVideo.style.display,
+                            width: scannerOverlayVideo.style.width,
+                            height: scannerOverlayVideo.style.height
+                        });
                         
                         // 비디오 재생 시도
                         const playPromise = scannerOverlayVideo.play();
@@ -4006,6 +4046,12 @@
             fullscreenOverlayVideo.style.width = videoWidth + 'px';
             fullscreenOverlayVideo.style.height = videoHeight + 'px';
             fullscreenOverlayVideo.style.display = 'block';
+            fullscreenOverlayVideo.style.background = 'transparent';
+            fullscreenOverlayVideo.style.objectFit = 'cover';
+            fullscreenOverlayVideo.style.border = '3px solid #ff6b35';
+            fullscreenOverlayVideo.style.borderRadius = '12px';
+            fullscreenOverlayVideo.style.boxShadow = '0 0 25px rgba(255, 107, 53, 0.8)';
+            fullscreenOverlayVideo.style.zIndex = '1002';
             
             // 프레임 위치 설정 (비디오보다 약간 크게)
             const frameMargin = 15;
@@ -4066,6 +4112,17 @@
             fullscreenOverlayVideo.setAttribute('playsinline', 'true');
             fullscreenOverlayVideo.setAttribute('controls', 'false');
             
+            // 비디오 스타일 강제 설정
+            fullscreenOverlayVideo.style.background = 'transparent';
+            fullscreenOverlayVideo.style.objectFit = 'cover';
+            fullscreenOverlayVideo.style.width = '100%';
+            fullscreenOverlayVideo.style.height = '100%';
+            fullscreenOverlayVideo.style.display = 'block';
+            fullscreenOverlayVideo.style.border = '3px solid #ff6b35';
+            fullscreenOverlayVideo.style.borderRadius = '12px';
+            fullscreenOverlayVideo.style.boxShadow = '0 0 25px rgba(255, 107, 53, 0.8)';
+            fullscreenOverlayVideo.style.zIndex = '1002';
+            
             // 비디오 소스 설정
             if (arData.videoData) {
                 console.log('🎬 전체 화면 비디오 소스 설정 중...');
@@ -4101,6 +4158,23 @@
                     fullscreenOverlayVideo.onloadeddata = () => {
                         console.log('🎬 전체 화면 비디오 데이터 로드 완료');
                         fullscreenArStatus.textContent = '🎬 AR 영상 재생 중';
+                        
+                        // 비디오 스타일 최종 확인
+                        fullscreenOverlayVideo.style.background = 'transparent';
+                        fullscreenOverlayVideo.style.objectFit = 'cover';
+                        fullscreenOverlayVideo.style.display = 'block';
+                        fullscreenOverlayVideo.style.border = '3px solid #ff6b35';
+                        fullscreenOverlayVideo.style.borderRadius = '12px';
+                        fullscreenOverlayVideo.style.boxShadow = '0 0 25px rgba(255, 107, 53, 0.8)';
+                        fullscreenOverlayVideo.style.zIndex = '1002';
+                        
+                        console.log('🎬 전체 화면 비디오 스타일 적용 완료:', {
+                            background: fullscreenOverlayVideo.style.background,
+                            objectFit: fullscreenOverlayVideo.style.objectFit,
+                            display: fullscreenOverlayVideo.style.display,
+                            width: fullscreenOverlayVideo.style.width,
+                            height: fullscreenOverlayVideo.style.height
+                        });
                         
                         // 비디오 재생 시도
                         const playPromise = fullscreenOverlayVideo.play();
