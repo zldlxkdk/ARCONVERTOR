@@ -695,9 +695,10 @@
             id="ar-scene"
             mindar-image="imageTargetSrc: #; maxTrack: 1; uiLoading: no; uiScanning: no; uiError: no;"
             color-space="sRGB" 
-            renderer="colorManagement: true, physicallyCorrectLights"
+            renderer="colorManagement: true, physicallyCorrectLights, antialias: true, alpha: true"
             vr-mode-ui="enabled: false" 
             device-orientation-permission-ui="enabled: false"
+            background="color: transparent"
             embedded
         >
             <a-assets>
@@ -718,7 +719,7 @@
                     rotation="0 0 0"
                     width="1.77" 
                     height="1"
-                    material="transparent: true; alphaTest: 0.1"
+                    material="transparent: false; alphaTest: 0; shader: flat; side: double"
                     visible="false"
                     id="ar-video-plane">
                 </a-video>
@@ -736,7 +737,7 @@
                 <a-text
                     id="fallback-text"
                     value="📺 유튜브 영상 재생 중\n터치해서 보기"
-                    position="0 0 0.1"
+                    position="0 0 0.15"
                     align="center"
                     color="#ff6b35"
                     font="kelsonsans"
@@ -744,11 +745,22 @@
                     visible="false">
                 </a-text>
                 
+                <!-- 디버그용 표시기 -->
+                <a-box
+                    id="debug-indicator"
+                    width="0.1"
+                    height="0.1"
+                    depth="0.1"
+                    position="0 0 0.2"
+                    material="color: #ff0000"
+                    visible="false">
+                </a-box>
+                
                 <a-plane 
                     width="1.77" 
                     height="1" 
                     position="0 0 0"
-                    material="color: #ff6b35; opacity: 0.1"
+                    material="color: #ff6b35; opacity: 0.1; transparent: true"
                     visible="false"
                     id="ar-overlay">
                 </a-plane>
@@ -1724,22 +1736,73 @@
             tryLoadVideo().then(() => {
                 // 비디오 로드 성공
                 console.log('AR 비디오 로드 성공');
-                document.getElementById('arStatus').textContent = '🎬 AR 비디오 재생 중';
+                document.getElementById('arStatus').textContent = '🎬 AR 비디오 준비 완료';
                 
-                // 이미지 위치에 정확히 비디오 오버레이
-                arVideoElement.setAttribute('visible', true);
-                arOverlay.setAttribute('visible', true);
-                arOverlay.setAttribute('material', 'color: #4CAF50; opacity: 0.1');
+                // 디버그 표시기 활성화
+                const debugIndicator = document.getElementById('debug-indicator');
+                debugIndicator.setAttribute('visible', true);
                 
-                // 비디오 재생
+                // 비디오 재생 시작
                 if (userInteracted) {
                     arVideo.muted = false;
                 }
-                arVideo.play().catch(console.error);
+                
+                arVideo.play().then(() => {
+                    console.log('비디오 재생 시작됨');
+                    
+                    // 비디오가 실제로 재생되기 시작한 후 표시
+                    setTimeout(() => {
+                        // 이미지 위치에 정확히 비디오 오버레이
+                        arVideoElement.setAttribute('visible', true);
+                        arOverlay.setAttribute('visible', true);
+                        arOverlay.setAttribute('material', 'color: #4CAF50; opacity: 0.3; transparent: true');
+                        
+                        document.getElementById('arStatus').textContent = '🎬 AR 비디오 재생 중 (클릭하면 소리)';
+                        
+                                                 // 비디오 텍스처 강제 업데이트
+                         arVideoElement.setAttribute('material', 'src: #ar-video; shader: flat; transparent: false; side: double');
+                         
+                         // 텍스처 새로고침 강제 실행
+                         setTimeout(() => {
+                             const material = arVideoElement.components.material;
+                             if (material && material.material) {
+                                 material.material.needsUpdate = true;
+                             }
+                         }, 100);
+                         
+                         console.log('AR 비디오 표시 완료');
+                         
+                         // 5초 후에도 비디오가 보이지 않으면 대체 방법 시도
+                         setTimeout(() => {
+                             if (arVideoElement.getAttribute('visible') === 'true' && arVideo.paused) {
+                                 console.warn('비디오가 여전히 보이지 않음, 대체 표시 방법 시도');
+                                 showVideoAlternative(arData);
+                             }
+                         }, 5000);
+                        
+                    }, 500); // 0.5초 후 표시
+                    
+                }).catch(error => {
+                    console.error('비디오 재생 실패:', error);
+                    document.getElementById('arStatus').textContent = '❌ 비디오 재생 실패';
+                    // 재생 실패 시 폴백으로 전환
+                    showYouTubeFallbackOnImage();
+                });
                 
                 // 유튜브 폴백 숨김
                 youtubeFallback.setAttribute('visible', false);
                 fallbackText.setAttribute('visible', false);
+                
+                // 비디오 클릭 이벤트 (소리 활성화)
+                arVideoElement.addEventListener('click', () => {
+                    if (arVideo.muted) {
+                        arVideo.muted = false;
+                        document.getElementById('arStatus').textContent = '🎬 AR 비디오 재생 중 (소리 ON)';
+                    } else {
+                        arVideo.muted = true;
+                        document.getElementById('arStatus').textContent = '🎬 AR 비디오 재생 중 (소리 OFF)';
+                    }
+                });
                 
             }).catch(error => {
                 // 비디오 로드 실패 - 유튜브 폴백
@@ -1798,7 +1861,55 @@
                         }
                     }, 5000);
                 }
-            }, 3000);
+                         }, 3000);
+        }
+
+        function showVideoAlternative(arData) {
+            console.log('대체 비디오 표시 방법 시도');
+            
+            // 기존 비디오 숨김
+            const arVideoElement = document.getElementById('ar-video-plane');
+            arVideoElement.setAttribute('visible', false);
+            
+            // Canvas를 사용한 비디오 표시
+            const canvas = document.createElement('canvas');
+            canvas.width = 512;
+            canvas.height = 288; // 16:9 비율
+            const ctx = canvas.getContext('2d');
+            
+            // A-Frame에 canvas 텍스처로 추가
+            const canvasTexture = document.createElement('a-plane');
+            canvasTexture.setAttribute('id', 'video-canvas-plane');
+            canvasTexture.setAttribute('width', '1.77');
+            canvasTexture.setAttribute('height', '1');
+            canvasTexture.setAttribute('position', '0 0 0.1');
+            canvasTexture.setAttribute('material', `canvas: #video-canvas-${Date.now()}; transparent: false; shader: flat`);
+            
+            // Canvas를 assets에 추가
+            canvas.id = `video-canvas-${Date.now()}`;
+            document.querySelector('a-assets').appendChild(canvas);
+            
+            // AR 타겟에 추가
+            document.querySelector('#ar-target').appendChild(canvasTexture);
+            
+            // 비디오를 Canvas에 그리기
+            const arVideo = document.getElementById('ar-video');
+            const drawVideo = () => {
+                if (!arVideo.paused && !arVideo.ended) {
+                    ctx.drawImage(arVideo, 0, 0, canvas.width, canvas.height);
+                    requestAnimationFrame(drawVideo);
+                }
+            };
+            
+            // 비디오 재생 시도
+            arVideo.play().then(() => {
+                canvasTexture.setAttribute('visible', true);
+                drawVideo();
+                document.getElementById('arStatus').textContent = '🎬 대체 방법으로 비디오 재생 중';
+            }).catch(() => {
+                // 비디오도 실패하면 폴백
+                showYouTubeFallbackOnImage();
+            });
         }
 
         function openYouTubeVideo() {
@@ -1862,6 +1973,7 @@
             document.getElementById('ar-overlay').setAttribute('visible', false);
             document.getElementById('youtube-fallback').setAttribute('visible', false);
             document.getElementById('fallback-text').setAttribute('visible', false);
+            document.getElementById('debug-indicator').setAttribute('visible', false);
             
             videoLoadFailed = false;
         }
