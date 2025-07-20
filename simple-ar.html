@@ -1773,6 +1773,7 @@
                     fileName: uploadedVideo.name,
                     duration: endTime - startTime,
                     createdAt: new Date().toISOString(),
+                    youtubeUrl: FALLBACK_YOUTUBE_URL, // YouTube URL 추가
                     fallbackUrl: FALLBACK_YOUTUBE_URL,
                     type: 'ar_image_video',
                     hasSpecialMarkers: false,
@@ -3660,16 +3661,21 @@
             // AR 이미지 영역 계산 및 비디오 위치 설정
             calculateScannerARPosition(arData);
             
-            // 비디오 로드
-            if (arData.youtubeUrl) {
-                console.log('📺 YouTube URL 발견, YouTube 오버레이 사용');
-                loadScannerYouTube(arData);
-            } else if (arData.videoData) {
+            // 비디오 로드 (우선순위: 실제 비디오 > YouTube URL > 폴백)
+            if (arData.videoData) {
                 console.log('🎬 실제 비디오 데이터 사용');
                 loadScannerVideo(arData);
+            } else if (arData.youtubeUrl) {
+                console.log('📺 YouTube URL 발견, YouTube 오버레이 사용');
+                loadScannerYouTube(arData);
             } else {
                 console.log('⚠️ 비디오 데이터 없음, YouTube 폴백 사용');
-                loadScannerYouTube(arData);
+                // 폴백 YouTube URL 설정
+                const fallbackData = {
+                    ...arData,
+                    youtubeUrl: 'https://www.youtube.com/watch?v=MX_UceuxveA'
+                };
+                loadScannerYouTube(fallbackData);
             }
         }
 
@@ -3737,10 +3743,17 @@
             const scannerOverlayVideo = document.getElementById('scannerOverlayVideo');
             const scannerArStatus = document.getElementById('scannerArStatus');
             
+            console.log('📺 스캔 YouTube 로드 시작');
+            scannerArStatus.textContent = '📺 YouTube 영상 로딩 중...';
+            
             // YouTube URL 설정
             const youtubeUrl = arData.youtubeUrl || 'https://www.youtube.com/watch?v=MX_UceuxveA';
             const videoId = youtubeUrl.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([^&\n?#]+)/)?.[1] || 'MX_UceuxveA';
-            const embedUrl = `https://www.youtube.com/embed/${videoId}?autoplay=1&mute=1&loop=1&playlist=${videoId}&rel=0&modestbranding=1&showinfo=0&controls=1`;
+            const embedUrl = `https://www.youtube.com/embed/${videoId}?autoplay=1&mute=1&loop=1&playlist=${videoId}&rel=0&modestbranding=1&showinfo=0&controls=1&enablejsapi=1`;
+            
+            console.log('📺 YouTube URL:', youtubeUrl);
+            console.log('📺 Video ID:', videoId);
+            console.log('📺 Embed URL:', embedUrl);
             
             // iframe 생성
             const iframe = document.createElement('iframe');
@@ -3752,11 +3765,22 @@
             iframe.allow = 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share';
             iframe.allowFullscreen = true;
             
+            // iframe 로드 완료 이벤트
+            iframe.onload = () => {
+                console.log('✅ YouTube iframe 로드 완료');
+                scannerArStatus.textContent = '📺 YouTube 영상 재생 중';
+            };
+            
+            // iframe 로드 실패 이벤트
+            iframe.onerror = () => {
+                console.error('❌ YouTube iframe 로드 실패');
+                scannerArStatus.textContent = '❌ YouTube 로드 실패';
+            };
+            
             // 기존 내용 제거하고 iframe 추가
             scannerOverlayVideo.innerHTML = '';
             scannerOverlayVideo.appendChild(iframe);
             
-            scannerArStatus.textContent = '📺 YouTube 영상 재생 중';
             console.log('📺 스캔 YouTube 로드 완료:', videoId);
         }
 
@@ -3764,6 +3788,8 @@
         function loadScannerVideo(arData) {
             const scannerOverlayVideo = document.getElementById('scannerOverlayVideo');
             const scannerArStatus = document.getElementById('scannerArStatus');
+            
+            console.log('🎬 스캔 비디오 로드 시작:', arData.videoData ? '비디오 데이터 있음' : '비디오 데이터 없음');
             
             // 비디오 요소 초기화
             scannerOverlayVideo.pause();
@@ -3776,31 +3802,76 @@
             scannerOverlayVideo.setAttribute('loop', 'true');
             scannerOverlayVideo.setAttribute('muted', 'true');
             scannerOverlayVideo.setAttribute('playsinline', 'true');
+            scannerOverlayVideo.setAttribute('controls', 'false');
             
             // 비디오 소스 설정
-            scannerOverlayVideo.src = arData.videoData;
-            
-            // 비디오 로드 완료 이벤트
-            scannerOverlayVideo.onloadeddata = () => {
-                console.log('🎬 스캔 비디오 데이터 로드 완료');
-                scannerArStatus.textContent = '🎬 AR 영상 재생 중';
+            if (arData.videoData) {
+                console.log('🎬 비디오 소스 설정 중...');
+                scannerOverlayVideo.src = arData.videoData;
                 
-                // 비디오 재생 시도
-                scannerOverlayVideo.play().then(() => {
-                    console.log('✅ 스캔 비디오 재생 시작');
-                }).catch(error => {
-                    console.error('❌ 스캔 비디오 재생 실패:', error);
-                    scannerArStatus.textContent = '❌ 비디오 재생 실패';
-                });
-            };
-            
-            // 비디오 로드 실패 시
-            scannerOverlayVideo.onerror = (e) => {
-                console.error('❌ 스캔 비디오 로드 실패:', e);
-                scannerArStatus.textContent = '❌ 비디오 로드 실패';
+                // 비디오 로드 시작 이벤트
+                scannerOverlayVideo.onloadstart = () => {
+                    console.log('🎬 스캔 비디오 로드 시작');
+                    scannerArStatus.textContent = '🎬 비디오 로딩 중...';
+                };
+                
+                // 비디오 메타데이터 로드 완료 이벤트
+                scannerOverlayVideo.onloadedmetadata = () => {
+                    console.log('🎬 스캔 비디오 메타데이터 로드 완료');
+                    scannerArStatus.textContent = '🎬 비디오 준비 중...';
+                };
+                
+                // 비디오 데이터 로드 완료 이벤트
+                scannerOverlayVideo.onloadeddata = () => {
+                    console.log('🎬 스캔 비디오 데이터 로드 완료');
+                    scannerArStatus.textContent = '🎬 AR 영상 재생 중';
+                    
+                    // 비디오 재생 시도
+                    const playPromise = scannerOverlayVideo.play();
+                    if (playPromise !== undefined) {
+                        playPromise.then(() => {
+                            console.log('✅ 스캔 비디오 재생 시작');
+                            scannerArStatus.textContent = '🎬 AR 영상 재생 중';
+                        }).catch(error => {
+                            console.error('❌ 스캔 비디오 재생 실패:', error);
+                            scannerArStatus.textContent = '❌ 비디오 재생 실패 - YouTube로 전환';
+                            // YouTube 폴백
+                            setTimeout(() => {
+                                loadScannerYouTube(arData);
+                            }, 1000);
+                        });
+                    }
+                };
+                
+                // 비디오 재생 시작 이벤트
+                scannerOverlayVideo.onplay = () => {
+                    console.log('✅ 스캔 비디오 재생 시작됨');
+                    scannerArStatus.textContent = '🎬 AR 영상 재생 중';
+                };
+                
+                // 비디오 로드 실패 시
+                scannerOverlayVideo.onerror = (e) => {
+                    console.error('❌ 스캔 비디오 로드 실패:', e);
+                    scannerArStatus.textContent = '❌ 비디오 로드 실패 - YouTube로 전환';
+                    // YouTube 폴백
+                    setTimeout(() => {
+                        loadScannerYouTube(arData);
+                    }, 1000);
+                };
+                
+                // 비디오 로드 진행 이벤트
+                scannerOverlayVideo.onprogress = () => {
+                    console.log('🎬 스캔 비디오 로드 진행 중...');
+                };
+                
+            } else {
+                console.error('❌ 비디오 데이터가 없습니다');
+                scannerArStatus.textContent = '❌ 비디오 데이터 없음 - YouTube로 전환';
                 // YouTube 폴백
-                loadScannerYouTube(arData);
-            };
+                setTimeout(() => {
+                    loadScannerYouTube(arData);
+                }, 1000);
+            }
         }
 
         // 스캔 비디오 소리 토글
