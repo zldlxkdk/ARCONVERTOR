@@ -1061,9 +1061,9 @@
                 console.log('📱 모바일 카메라 접근 시도 시작');
                 console.log('📱 모바일 환경:', isMobile, 'iOS:', isIOS);
                 
-                // 1단계: 후면 카메라 우선 시도
+                // 무조건 후면 카메라만 시도
                 try {
-                    console.log('📱 1단계: 후면 카메라 접근 시도');
+                    console.log('📱 후면 카메라 접근 시도');
                     stream = await navigator.mediaDevices.getUserMedia({ 
                         video: { 
                             facingMode: 'environment',
@@ -1073,65 +1073,16 @@
                     });
                     console.log('✅ 후면 카메라 접근 성공');
                 } catch (envError) {
-                    console.warn('❌ 후면 카메라 접근 실패:', envError.message);
+                    console.error('❌ 후면 카메라 접근 실패:', envError.message);
                     
-                    // 2단계: 전면 카메라 시도
-                    try {
-                        console.log('📱 2단계: 전면 카메라 접근 시도');
-                        stream = await navigator.mediaDevices.getUserMedia({ 
-                            video: { 
-                                facingMode: 'user',
-                                width: { ideal: 1280, min: 640 },
-                                height: { ideal: 720, min: 480 }
-                            } 
-                        });
-                        console.log('✅ 전면 카메라 접근 성공');
-                    } catch (userError) {
-                        console.warn('❌ 전면 카메라 접근 실패:', userError.message);
-                        
-                        // 3단계: 기본 카메라 시도
-                        try {
-                            console.log('📱 3단계: 기본 카메라 접근 시도');
-                            stream = await navigator.mediaDevices.getUserMedia({ 
-                                video: true 
-                            });
-                            console.log('✅ 기본 카메라 접근 성공');
-                        } catch (basicError) {
-                            console.warn('❌ 후면 카메라 접근 실패:', envError.message);
-                            
-                            // 4단계: 매우 낮은 해상도로 시도
-                            try {
-                                console.log('📱 4단계: 낮은 해상도 카메라 접근 시도');
-                                stream = await navigator.mediaDevices.getUserMedia({ 
-                                    video: {
-                                        width: { ideal: 640, min: 320 },
-                                        height: { ideal: 480, min: 240 }
-                                    }
-                                });
-                                console.log('✅ 낮은 해상도 카메라 접근 성공');
-                            } catch (finalError) {
-                                console.error('❌ 모든 카메라 접근 시도 실패:', finalError);
-                                
-                                // iOS Safari 특별 처리
-                                if (isIOS) {
-                                    scanInstructionsFullscreen.innerHTML = `
-                                        📱 iOS Safari에서 카메라 접근이 차단되었습니다<br>
-                                        <span style="color: #ff6b35;">설정 > Safari > 카메라 > 허용으로 변경해주세요</span><br>
-                                        <span style="opacity: 0.7;">또는 홈 화면에 추가 후 사용하세요</span><br>
-                                        <span style="opacity: 0.5; font-size: 12px;">💡 최신 AR 이미지로 직접 실행할 수 있습니다</span>
-                                    `;
-                                } else {
-                                    scanInstructionsFullscreen.innerHTML = `
-                                        📱 카메라 접근이 차단되었습니다<br>
-                                        <span style="color: #ff6b35;">브라우저 설정에서 카메라 권한을 허용해주세요</span><br>
-                                        <span style="opacity: 0.5; font-size: 12px;">💡 최신 AR 이미지로 직접 실행할 수 있습니다</span>
-                                    `;
-                                }
-                                
-                                throw new Error(`모바일 카메라 접근 실패: ${finalError.message}`);
-                            }
-                        }
-                    }
+                    // 후면 카메라가 없으면 오류 메시지 표시
+                    scanInstructionsFullscreen.innerHTML = `
+                        📱 후면 카메라를 찾을 수 없습니다<br>
+                        <span style="color: #ff6b35;">후면 카메라가 있는 기기를 사용해주세요</span><br>
+                        <span style="opacity: 0.5; font-size: 12px;">💡 전면 카메라만 있는 기기는 지원하지 않습니다</span>
+                    `;
+                    
+                    throw new Error('후면 카메라가 필요합니다');
                 }
                 
                 if (stream) {
@@ -1261,7 +1212,7 @@
                 let stream = null;
                 
                 try {
-                    // 후면 카메라 우선 시도
+                    // 무조건 후면 카메라만 시도
                     console.log('📱 후면 카메라 접근 시도 (startImageScan)');
                     stream = await navigator.mediaDevices.getUserMedia({ 
                         video: { 
@@ -1273,48 +1224,16 @@
                     console.log('✅ 후면 카메라 접근 성공 (startImageScan)');
                     
                 } catch (envError) {
-                    console.warn('후면 카메라 접근 실패:', envError.message);
+                    console.error('후면 카메라 접근 실패:', envError.message);
                     
-                    try {
-                        // 전면 카메라 시도
-                        console.log('📱 전면 카메라 접근 시도 (startImageScan)');
-                        stream = await navigator.mediaDevices.getUserMedia({ 
-                            video: { 
-                                facingMode: 'user',
-                                width: { ideal: 1280, min: 640 },
-                                height: { ideal: 720, min: 480 }
-                            } 
-                        });
-                        console.log('✅ 전면 카메라 접근 성공 (startImageScan)');
-                    } catch (userError) {
-                        console.warn('전면 카메라 접근 실패:', userError.message);
-                        
-                        try {
-                            // 기본 카메라 시도
-                            console.log('📱 기본 카메라 접근 시도 (startImageScan)');
-                            stream = await navigator.mediaDevices.getUserMedia({ 
-                                video: true // 가장 간단한 설정
-                            });
-                            console.log('✅ 모바일 카메라 접근 성공 (startImageScan) - 기본 설정');
-                        } catch (basicError) {
-                            console.warn('후면 카메라 접근 실패:', envError.message);
-                            
-                            try {
-                                // 매우 낮은 해상도로 시도
-                                console.log('📱 낮은 해상도 카메라 접근 시도 (startImageScan)');
-                                stream = await navigator.mediaDevices.getUserMedia({ 
-                                    video: {
-                                        width: { ideal: 320, min: 160 },
-                                        height: { ideal: 240, min: 120 }
-                                    }
-                                });
-                                console.log('✅ 낮은 해상도 카메라 접근 성공 (startImageScan)');
-                            } catch (finalError) {
-                                console.error('모든 카메라 접근 시도 실패:', finalError);
-                                throw new Error(`모바일 카메라 접근 실패: ${finalError.message}`);
-                            }
-                        }
-                    }
+                    // 후면 카메라가 없으면 오류 메시지 표시
+                    document.getElementById('scan-instructions').innerHTML = `
+                        📱 후면 카메라를 찾을 수 없습니다<br>
+                        <span style="color: #ff6b35;">후면 카메라가 있는 기기를 사용해주세요</span><br>
+                        <span style="opacity: 0.5; font-size: 12px;">💡 전면 카메라만 있는 기기는 지원하지 않습니다</span>
+                    `;
+                    
+                    throw new Error('후면 카메라가 필요합니다');
                 }
                 
                 if (stream) {
@@ -2552,7 +2471,7 @@
         }
 
         function setupCameraBackgroundDirect() {
-            console.log('카메라 백그라운드 직접 설정');
+            console.log('후면 카메라 백그라운드 직접 설정');
             
             const cameraBackground = document.getElementById('cameraBackground');
             if (!cameraBackground) {
@@ -2560,10 +2479,10 @@
                 return;
             }
             
-            // 카메라 스트림 시작 (백그라운드용) - 후면 카메라 우선
+            // 무조건 후면 카메라만 사용
             navigator.mediaDevices.getUserMedia({ 
                 video: { 
-                    facingMode: { ideal: 'environment' },
+                    facingMode: 'environment', // 무조건 후면 카메라만
                     width: { ideal: 1920 },
                     height: { ideal: 1080 }
                 } 
@@ -2572,13 +2491,20 @@
                 cameraBackground.srcObject = stream;
                 cameraBackground.style.display = 'block';
                 cameraBackground.play();
-                console.log('카메라 백그라운드 설정 완료');
+                console.log('후면 카메라 백그라운드 설정 완료');
             })
             .catch(error => {
-                console.warn('카메라 백그라운드 설정 실패:', error);
-                // 카메라 실패 시 검은 배경
+                console.error('후면 카메라 백그라운드 설정 실패:', error);
+                // 후면 카메라 실패 시 오류 메시지 표시
                 cameraBackground.style.background = '#000';
                 cameraBackground.style.display = 'block';
+                cameraBackground.innerHTML = `
+                    <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); 
+                                color: white; text-align: center; z-index: 1000;">
+                        <h3>❌ 후면 카메라 필요</h3>
+                        <p>후면 카메라가 있는 기기를 사용해주세요</p>
+                    </div>
+                `;
             });
         }
 
@@ -4723,11 +4649,11 @@
         
         async function startCameraStream() {
             try {
-                console.log('📷 카메라 스트림 시작 중...');
+                console.log('📷 후면 카메라 스트림 시작 중...');
                 
                 const stream = await navigator.mediaDevices.getUserMedia({
                     video: {
-                        facingMode: 'environment', // 후면 카메라 우선
+                        facingMode: 'environment', // 무조건 후면 카메라만
                         width: { ideal: 1280 },
                         height: { ideal: 720 }
                     }
@@ -4739,14 +4665,14 @@
                 
                 if (camera && camera.components.camera) {
                     camera.components.camera.camera = stream;
-                    console.log('✅ 카메라 스트림 연결 완료');
+                    console.log('✅ 후면 카메라 스트림 연결 완료');
                 }
                 
                 return stream;
                 
             } catch (error) {
-                console.error('❌ 카메라 스트림 시작 실패:', error);
-                throw error;
+                console.error('❌ 후면 카메라 스트림 시작 실패:', error);
+                throw new Error('후면 카메라가 필요합니다');
             }
         }
         
