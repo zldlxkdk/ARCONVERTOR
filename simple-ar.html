@@ -224,6 +224,10 @@
             display: none;
         }
 
+        .ar-viewer.active {
+            display: block;
+        }
+
         .ar-controls {
             position: fixed;
             top: 20px;
@@ -236,13 +240,14 @@
         }
 
         .ar-status {
-            background: rgba(0, 0, 0, 0.7);
+            background: rgba(0, 0, 0, 0.8);
             color: white;
             padding: 10px 15px;
             border-radius: 20px;
-            font-size: 12px;
+            font-size: 14px;
             backdrop-filter: blur(10px);
-            max-width: 250px;
+            max-width: 300px;
+            font-weight: 500;
         }
 
         .ar-close {
@@ -267,6 +272,45 @@
             padding: 20px;
             margin-top: 15px;
             text-align: center;
+        }
+
+        /* 카메라 미리보기 스타일 */
+        .camera-preview {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            width: 120px;
+            height: 90px;
+            background: rgba(0, 0, 0, 0.8);
+            border-radius: 10px;
+            overflow: hidden;
+            z-index: 1002;
+            border: 2px solid #ff6b35;
+        }
+
+        .camera-preview video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .camera-preview.hidden {
+            display: none;
+        }
+
+        /* AR Scene 컨테이너 */
+        .ar-scene-container {
+            width: 100%;
+            height: 100%;
+            position: relative;
+        }
+
+        #ar-scene {
+            width: 100%;
+            height: 100%;
+            position: absolute;
+            top: 0;
+            left: 0;
         }
 
         .target-image-container {
@@ -314,11 +358,6 @@
 
         .share-btn:hover {
             background: #1976D2;
-        }
-
-        #ar-scene {
-            width: 100%;
-            height: 100%;
         }
 
         .scan-info {
@@ -690,17 +729,23 @@
             <div class="ar-status" id="arStatus">AR 준비 중...</div>
             <button class="ar-close" onclick="closeARViewer()">✕ 닫기</button>
         </div>
+
+        <!-- 카메라 미리보기 -->
+        <div class="camera-preview" id="cameraPreview">
+            <video id="previewVideo" autoplay muted playsinline></video>
+        </div>
         
-        <a-scene 
-            id="ar-scene"
-            mindar-image="imageTargetSrc: #; maxTrack: 1; uiLoading: no; uiScanning: no; uiError: no;"
-            color-space="sRGB" 
-            renderer="colorManagement: true, physicallyCorrectLights, antialias: true, alpha: true"
-            vr-mode-ui="enabled: false" 
-            device-orientation-permission-ui="enabled: false"
-            background="color: transparent"
-            embedded
-        >
+        <div class="ar-scene-container">
+            <a-scene 
+                id="ar-scene"
+                mindar-image="imageTargetSrc: #; maxTrack: 1; uiLoading: no; uiScanning: no; uiError: no;"
+                color-space="sRGB" 
+                renderer="colorManagement: true, physicallyCorrectLights, antialias: true, alpha: true"
+                vr-mode-ui="enabled: false" 
+                device-orientation-permission-ui="enabled: false"
+                background="color: transparent"
+                embedded
+            >
             <a-assets>
                 <video id="ar-video" 
                        preload="auto" 
@@ -768,6 +813,7 @@
 
             <a-entity camera look-controls="enabled: true" wasd-controls="enabled: false"></a-entity>
         </a-scene>
+        </div>
     </div>
 
     <script>
@@ -1579,18 +1625,27 @@
             
             const arData = JSON.parse(arDataJson);
             
-            const video = document.getElementById('scannerVideo');
-            if (video.srcObject) {
-                video.srcObject.getTracks().forEach(track => track.stop());
+            // 스캔 화면 숨기고 AR 뷰어 표시
+            document.getElementById('scannerContainer').style.display = 'none';
+            const arViewer = document.getElementById('arViewer');
+            arViewer.style.display = 'block';
+            arViewer.classList.add('active');
+            
+            document.getElementById('arStatus').textContent = 'AR 시스템 초기화 중...';
+            
+            // 카메라 스트림을 AR 뷰어로 복사
+            const scannerVideo = document.getElementById('scannerVideo');
+            const previewVideo = document.getElementById('previewVideo');
+            
+            if (scannerVideo && scannerVideo.srcObject) {
+                previewVideo.srcObject = scannerVideo.srcObject;
+                document.getElementById('cameraPreview').classList.remove('hidden');
             }
             
             if (scanTimeout) {
                 clearTimeout(scanTimeout);
                 scanTimeout = null;
             }
-            
-            document.getElementById('arViewer').style.display = 'block';
-            document.getElementById('arStatus').textContent = 'AR 시스템 초기화 중...';
             
             const targetImage = document.getElementById('ar-target-image');
             targetImage.src = arData.targetImage;
@@ -1750,7 +1805,7 @@
                 arVideo.play().then(() => {
                     console.log('비디오 재생 시작됨');
                     
-                    // 비디오가 실제로 재생되기 시작한 후 표시
+                                        // 비디오가 실제로 재생되기 시작한 후 표시
                     setTimeout(() => {
                         // 이미지 위치에 정확히 비디오 오버레이
                         arVideoElement.setAttribute('visible', true);
@@ -1759,26 +1814,52 @@
                         
                         document.getElementById('arStatus').textContent = '🎬 AR 비디오 재생 중 (클릭하면 소리)';
                         
-                                                 // 비디오 텍스처 강제 업데이트
-                         arVideoElement.setAttribute('material', 'src: #ar-video; shader: flat; transparent: false; side: double');
-                         
-                         // 텍스처 새로고침 강제 실행
-                         setTimeout(() => {
-                             const material = arVideoElement.components.material;
-                             if (material && material.material) {
-                                 material.material.needsUpdate = true;
-                             }
-                         }, 100);
-                         
-                         console.log('AR 비디오 표시 완료');
-                         
-                         // 5초 후에도 비디오가 보이지 않으면 대체 방법 시도
-                         setTimeout(() => {
-                             if (arVideoElement.getAttribute('visible') === 'true' && arVideo.paused) {
-                                 console.warn('비디오가 여전히 보이지 않음, 대체 표시 방법 시도');
-                                 showVideoAlternative(arData);
-                             }
-                         }, 5000);
+                        // 비디오 텍스처 설정 개선
+                        const videoSrc = arVideo.src;
+                        console.log('비디오 소스:', videoSrc ? '설정됨' : '없음');
+                        console.log('비디오 재생 상태:', !arVideo.paused ? '재생중' : '정지');
+                        console.log('비디오 크기:', arVideo.videoWidth, 'x', arVideo.videoHeight);
+                        
+                        // A-Frame 비디오 요소 강제 업데이트
+                        arVideoElement.setAttribute('material', {
+                            src: '#ar-video',
+                            shader: 'flat',
+                            transparent: false,
+                            side: 'double'
+                        });
+                        
+                        // 텍스처 새로고침 강제 실행
+                        setTimeout(() => {
+                            const material = arVideoElement.components.material;
+                            if (material && material.material && material.material.map) {
+                                material.material.map.needsUpdate = true;
+                                material.material.needsUpdate = true;
+                                console.log('텍스처 강제 업데이트 완료');
+                            }
+                        }, 100);
+                        
+                        console.log('AR 비디오 표시 설정 완료');
+                        
+                        // 3초 후 비디오 상태 체크
+                        setTimeout(() => {
+                            if (arVideoElement.getAttribute('visible') === 'true') {
+                                if (arVideo.paused) {
+                                    console.warn('비디오가 정지 상태, 재시작 시도');
+                                    arVideo.play().catch(console.error);
+                                } else {
+                                    console.log('비디오 정상 재생 중');
+                                    document.getElementById('arStatus').textContent = '✅ AR 비디오 정상 재생 중';
+                                }
+                            }
+                        }, 3000);
+                        
+                        // 8초 후에도 문제가 있으면 대체 방법 시도
+                        setTimeout(() => {
+                            if (arVideoElement.getAttribute('visible') === 'true' && arVideo.paused) {
+                                console.warn('비디오가 여전히 보이지 않음, 대체 표시 방법 시도');
+                                showVideoAlternative(arData);
+                            }
+                        }, 8000);
                         
                     }, 500); // 0.5초 후 표시
                     
@@ -1947,11 +2028,25 @@
         }
 
         function closeARViewer() {
-            document.getElementById('arViewer').style.display = 'none';
+            // AR 뷰어 숨김
+            const arViewer = document.getElementById('arViewer');
+            arViewer.style.display = 'none';
+            arViewer.classList.remove('active');
             
-            const video = document.getElementById('scannerVideo');
-            if (video.srcObject) {
-                video.srcObject.getTracks().forEach(track => track.stop());
+            // 카메라 미리보기 숨김
+            document.getElementById('cameraPreview').classList.add('hidden');
+            
+            // 카메라 스트림 정리
+            const scannerVideo = document.getElementById('scannerVideo');
+            const previewVideo = document.getElementById('previewVideo');
+            
+            if (scannerVideo && scannerVideo.srcObject) {
+                scannerVideo.srcObject.getTracks().forEach(track => track.stop());
+                scannerVideo.srcObject = null;
+            }
+            
+            if (previewVideo && previewVideo.srcObject) {
+                previewVideo.srcObject = null;
             }
             
             if (scanTimeout) {
@@ -1959,13 +2054,16 @@
                 scanTimeout = null;
             }
             
+            // 스캔 화면 리셋
             document.getElementById('scannerContainer').style.display = 'none';
             document.getElementById('startScanBtn').style.display = 'block';
             
+            // AR 비디오 정리
             const arVideo = document.getElementById('ar-video');
             if (arVideo) {
                 arVideo.pause();
                 arVideo.currentTime = 0;
+                arVideo.src = '';
             }
             
             // 모든 AR 요소 숨김
@@ -1975,7 +2073,16 @@
             document.getElementById('fallback-text').setAttribute('visible', false);
             document.getElementById('debug-indicator').setAttribute('visible', false);
             
+            // 생성된 Canvas 요소들 정리
+            const canvasPlanes = document.querySelectorAll('#ar-target [id^="video-canvas-plane"]');
+            canvasPlanes.forEach(plane => plane.remove());
+            
+            const canvasElements = document.querySelectorAll('a-assets canvas[id^="video-canvas-"]');
+            canvasElements.forEach(canvas => canvas.remove());
+            
             videoLoadFailed = false;
+            
+            console.log('AR 뷰어 완전히 정리됨');
         }
 
         // URL 파라미터로 AR ID가 전달된 경우 자동 로드
