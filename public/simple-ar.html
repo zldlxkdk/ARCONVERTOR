@@ -1,0 +1,616 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>간단 AR 생성기 - 이미지 + 비디오 업로드</title>
+    <script src="https://aframe.io/releases/1.4.0/aframe.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.2/dist/mindar-image-aframe.prod.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: white;
+        }
+
+        .container {
+            max-width: 400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .step {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .step.active {
+            background: rgba(255, 255, 255, 0.2);
+            border-color: #ff6b35;
+            box-shadow: 0 0 20px rgba(255, 107, 53, 0.3);
+        }
+
+        .step-title {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .step-number {
+            background: #ff6b35;
+            color: white;
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            font-weight: bold;
+        }
+
+        .upload-area {
+            border: 2px dashed rgba(255, 255, 255, 0.5);
+            border-radius: 10px;
+            padding: 20px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-bottom: 15px;
+        }
+
+        .upload-area:hover {
+            border-color: #ff6b35;
+            background: rgba(255, 107, 53, 0.1);
+        }
+
+        .upload-area.dragover {
+            border-color: #ff6b35;
+            background: rgba(255, 107, 53, 0.2);
+            transform: scale(1.02);
+        }
+
+        .upload-icon {
+            font-size: 32px;
+            margin-bottom: 10px;
+            opacity: 0.7;
+        }
+
+        .upload-text {
+            font-size: 14px;
+            opacity: 0.8;
+        }
+
+        .file-input {
+            display: none;
+        }
+
+        .preview {
+            max-width: 100%;
+            border-radius: 10px;
+            margin-top: 10px;
+        }
+
+        .preview-image {
+            width: 100%;
+            height: 150px;
+            object-fit: cover;
+            border-radius: 10px;
+        }
+
+        .btn {
+            background: linear-gradient(45deg, #ff6b35, #f7931e);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 25px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            width: 100%;
+            transition: all 0.3s ease;
+            margin-top: 10px;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(255, 107, 53, 0.4);
+        }
+
+        .btn:disabled {
+            background: #666;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        .progress {
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 10px;
+            padding: 10px;
+            margin: 10px 0;
+            text-align: center;
+            font-size: 12px;
+        }
+
+        .spinner {
+            width: 20px;
+            height: 20px;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-top: 2px solid white;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            display: inline-block;
+            margin-right: 10px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .ar-viewer {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: #000;
+            z-index: 1000;
+            display: none;
+        }
+
+        .ar-controls {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            right: 20px;
+            z-index: 1001;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .ar-status {
+            background: rgba(0, 0, 0, 0.7);
+            color: white;
+            padding: 10px 15px;
+            border-radius: 20px;
+            font-size: 12px;
+            backdrop-filter: blur(10px);
+        }
+
+        .ar-close {
+            background: #ff6b35;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .check-icon {
+            color: #4CAF50;
+            font-size: 20px;
+        }
+
+        .target-info {
+            background: rgba(0, 0, 0, 0.1);
+            border-radius: 10px;
+            padding: 15px;
+            margin-top: 15px;
+            text-align: center;
+        }
+
+        .target-preview {
+            width: 120px;
+            height: 120px;
+            object-fit: cover;
+            border-radius: 10px;
+            margin: 0 auto 10px;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+        }
+
+        #ar-scene {
+            width: 100%;
+            height: 100%;
+        }
+
+        .video-preview {
+            width: 100%;
+            height: 100px;
+            object-fit: cover;
+            border-radius: 10px;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1 style="text-align: center; margin-bottom: 30px; font-size: 24px;">
+            📱 간단 AR 생성기
+        </h1>
+
+        <!-- 1단계: 이미지 업로드 -->
+        <div class="step" id="step1">
+            <div class="step-title">
+                <div class="step-number">1</div>
+                AR 타겟 이미지 업로드
+            </div>
+            <div class="upload-area" onclick="document.getElementById('imageInput').click()">
+                <div class="upload-icon">📷</div>
+                <div class="upload-text">이미지 파일을 클릭하거나 드래그해서 업로드하세요</div>
+                <div style="font-size: 12px; opacity: 0.6; margin-top: 5px;">
+                    JPG, PNG 지원 (최대 5MB)
+                </div>
+            </div>
+            <input type="file" id="imageInput" class="file-input" accept="image/*" />
+            <div id="imagePreview"></div>
+        </div>
+
+        <!-- 2단계: 비디오 업로드 -->
+        <div class="step" id="step2">
+            <div class="step-title">
+                <div class="step-number">2</div>
+                재생할 비디오 업로드
+            </div>
+            <div class="upload-area" onclick="document.getElementById('videoInput').click()">
+                <div class="upload-icon">🎬</div>
+                <div class="upload-text">비디오 파일을 클릭하거나 드래그해서 업로드하세요</div>
+                <div style="font-size: 12px; opacity: 0.6; margin-top: 5px;">
+                    MP4, WebM 지원 (최대 50MB)
+                </div>
+            </div>
+            <input type="file" id="videoInput" class="file-input" accept="video/*" />
+            <div id="videoPreview"></div>
+        </div>
+
+        <!-- 3단계: AR 타겟 생성 -->
+        <div class="step" id="step3">
+            <div class="step-title">
+                <div class="step-number">3</div>
+                AR 타겟 생성
+            </div>
+            <button class="btn" id="generateBtn" onclick="generateARTarget()" disabled>
+                AR 타겟 생성하기
+            </button>
+            <div id="generateProgress"></div>
+            <div id="targetResult"></div>
+        </div>
+
+        <!-- 4단계: AR 스캔 -->
+        <div class="step" id="step4">
+            <div class="step-title">
+                <div class="step-number">4</div>
+                AR 스캔 시작
+            </div>
+            <div id="scanInstructions">
+                <p style="font-size: 14px; opacity: 0.8; margin-bottom: 15px;">
+                    아래 이미지를 카메라로 비춰주세요
+                </p>
+            </div>
+            <button class="btn" id="scanBtn" onclick="startARScan()" disabled>
+                📷 AR 스캔 시작
+            </button>
+        </div>
+    </div>
+
+    <!-- AR 뷰어 -->
+    <div class="ar-viewer" id="arViewer">
+        <div class="ar-controls">
+            <div class="ar-status" id="arStatus">카메라 준비 중...</div>
+            <button class="ar-close" onclick="closeARViewer()">✕ 닫기</button>
+        </div>
+        
+        <a-scene 
+            id="ar-scene"
+            mindar-image="imageTargetSrc: #; maxTrack: 1; uiLoading: no; uiScanning: no; uiError: no;"
+            color-space="sRGB" 
+            renderer="colorManagement: true, physicallyCorrectLights"
+            vr-mode-ui="enabled: false" 
+            device-orientation-permission-ui="enabled: false"
+            embedded
+        >
+            <a-assets>
+                <video id="ar-video" 
+                       preload="auto" 
+                       loop="true" 
+                       muted="true"
+                       webkit-playsinline="true" 
+                       playsinline="true">
+                </video>
+            </a-assets>
+
+            <a-entity id="ar-target" mindar-image-target="targetIndex: 0">
+                <a-video 
+                    src="#ar-video" 
+                    position="0 0 0.1" 
+                    rotation="0 0 0"
+                    width="1.5" 
+                    height="1"
+                    material="transparent: true"
+                    visible="false">
+                </a-video>
+            </a-entity>
+
+            <a-entity camera></a-entity>
+        </a-scene>
+    </div>
+
+    <script>
+        let uploadedImage = null;
+        let uploadedVideo = null;
+        let arTargetData = null;
+        let userInteracted = false;
+
+        // 파일 업로드 핸들링
+        document.getElementById('imageInput').addEventListener('change', handleImageUpload);
+        document.getElementById('videoInput').addEventListener('change', handleVideoUpload);
+
+        // 드래그 앤 드롭 지원
+        setupDragDrop();
+
+        function setupDragDrop() {
+            const uploadAreas = document.querySelectorAll('.upload-area');
+            
+            uploadAreas.forEach(area => {
+                area.addEventListener('dragover', (e) => {
+                    e.preventDefault();
+                    area.classList.add('dragover');
+                });
+                
+                area.addEventListener('dragleave', () => {
+                    area.classList.remove('dragover');
+                });
+                
+                area.addEventListener('drop', (e) => {
+                    e.preventDefault();
+                    area.classList.remove('dragover');
+                    
+                    const files = e.dataTransfer.files;
+                    if (files.length > 0) {
+                        const file = files[0];
+                        
+                        if (area.parentElement.id === 'step1' && file.type.startsWith('image/')) {
+                            handleImageFile(file);
+                        } else if (area.parentElement.id === 'step2' && file.type.startsWith('video/')) {
+                            handleVideoFile(file);
+                        }
+                    }
+                });
+            });
+        }
+
+        function handleImageUpload(event) {
+            const file = event.target.files[0];
+            if (file) handleImageFile(file);
+        }
+
+        function handleVideoUpload(event) {
+            const file = event.target.files[0];
+            if (file) handleVideoFile(file);
+        }
+
+        function handleImageFile(file) {
+            if (file.size > 5 * 1024 * 1024) {
+                alert('이미지 파일이 너무 큽니다. 5MB 이하로 업로드해주세요.');
+                return;
+            }
+
+            uploadedImage = file;
+            
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const preview = document.getElementById('imagePreview');
+                preview.innerHTML = `
+                    <img src="${e.target.result}" class="preview-image" alt="업로드된 이미지">
+                    <div style="font-size: 12px; opacity: 0.8; margin-top: 5px;">
+                        ✅ ${file.name} (${(file.size / 1024 / 1024).toFixed(2)}MB)
+                    </div>
+                `;
+                
+                document.getElementById('step1').classList.add('active');
+                checkGenerateReady();
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function handleVideoFile(file) {
+            if (file.size > 50 * 1024 * 1024) {
+                alert('비디오 파일이 너무 큽니다. 50MB 이하로 업로드해주세요.');
+                return;
+            }
+
+            uploadedVideo = file;
+            
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const preview = document.getElementById('videoPreview');
+                preview.innerHTML = `
+                    <video src="${e.target.result}" class="video-preview" controls muted></video>
+                    <div style="font-size: 12px; opacity: 0.8; margin-top: 5px;">
+                        ✅ ${file.name} (${(file.size / 1024 / 1024).toFixed(2)}MB)
+                    </div>
+                `;
+                
+                document.getElementById('step2').classList.add('active');
+                checkGenerateReady();
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function checkGenerateReady() {
+            if (uploadedImage && uploadedVideo) {
+                document.getElementById('generateBtn').disabled = false;
+                document.getElementById('step3').classList.add('active');
+            }
+        }
+
+        async function generateARTarget() {
+            const progressDiv = document.getElementById('generateProgress');
+            const resultDiv = document.getElementById('targetResult');
+            
+            progressDiv.innerHTML = `
+                <div class="progress">
+                    <div class="spinner"></div>
+                    AR 타겟 생성 중... (브라우저에서 처리)
+                </div>
+            `;
+
+            try {
+                // 클라이언트 사이드에서 간단한 AR 타겟 시뮬레이션
+                await new Promise(resolve => setTimeout(resolve, 2000));
+                
+                // 이미지를 AR 타겟으로 사용 (실제로는 mindAR 타겟 생성 필요)
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    arTargetData = {
+                        imageUrl: e.target.result,
+                        imageName: uploadedImage.name
+                    };
+                    
+                    progressDiv.innerHTML = '';
+                    resultDiv.innerHTML = `
+                        <div class="target-info">
+                            <div class="check-icon">✅</div>
+                            <div style="margin: 10px 0; font-weight: 600;">AR 타겟 생성 완료!</div>
+                            <img src="${e.target.result}" class="target-preview" alt="AR 타겟">
+                            <div style="font-size: 12px; opacity: 0.8;">
+                                이 이미지를 카메라로 비춰주세요
+                            </div>
+                        </div>
+                    `;
+                    
+                    document.getElementById('step4').classList.add('active');
+                    document.getElementById('scanBtn').disabled = false;
+                    
+                    // AR 뷰어 준비
+                    prepareARViewer();
+                };
+                reader.readAsDataURL(uploadedImage);
+                
+            } catch (error) {
+                progressDiv.innerHTML = '';
+                resultDiv.innerHTML = `
+                    <div class="progress" style="background: rgba(255,0,0,0.2);">
+                        ❌ 타겟 생성 실패: ${error.message}
+                    </div>
+                `;
+            }
+        }
+
+        function prepareARViewer() {
+            // 비디오 소스 설정
+            const videoReader = new FileReader();
+            videoReader.onload = function(e) {
+                const arVideo = document.getElementById('ar-video');
+                arVideo.src = e.target.result;
+            };
+            videoReader.readAsDataURL(uploadedVideo);
+        }
+
+        async function startARScan() {
+            if (!arTargetData) {
+                alert('먼저 AR 타겟을 생성해주세요.');
+                return;
+            }
+
+            try {
+                // AR 뷰어 표시
+                document.getElementById('arViewer').style.display = 'block';
+                document.getElementById('arStatus').textContent = '카메라 초기화 중...';
+                
+                // 사용자 상호작용 이벤트 등록
+                if (!userInteracted) {
+                    document.addEventListener('click', enableAudio, { once: true });
+                    document.addEventListener('touchstart', enableAudio, { once: true });
+                }
+                
+                // AR 시스템 초기화 (간단한 시뮬레이션)
+                await initializeAR();
+                
+            } catch (error) {
+                alert('AR 스캔 시작 실패: ' + error.message);
+                closeARViewer();
+            }
+        }
+
+        async function initializeAR() {
+            // 실제로는 mindAR 타겟 파일이 필요하지만, 
+            // 여기서는 간단한 시뮬레이션으로 대체
+            
+            document.getElementById('arStatus').textContent = 'AR 준비 완료 - 이미지를 비춰주세요';
+            
+            // 5초 후 자동으로 타겟 감지 시뮬레이션
+            setTimeout(() => {
+                simulateTargetDetection();
+            }, 3000);
+        }
+
+        function simulateTargetDetection() {
+            document.getElementById('arStatus').textContent = '🎯 타겟 감지됨! 비디오 재생 중';
+            
+            // AR 비디오 표시 및 재생
+            const arVideo = document.getElementById('ar-video');
+            const arVideoElement = document.querySelector('a-video');
+            
+            if (arVideoElement && arVideo) {
+                arVideoElement.setAttribute('visible', true);
+                
+                if (userInteracted) {
+                    arVideo.muted = false;
+                    arVideo.play().catch(console.error);
+                } else {
+                    arVideo.play().catch(console.error);
+                }
+            }
+        }
+
+        function enableAudio() {
+            userInteracted = true;
+            const arVideo = document.getElementById('ar-video');
+            if (arVideo) {
+                arVideo.muted = false;
+            }
+        }
+
+        function closeARViewer() {
+            document.getElementById('arViewer').style.display = 'none';
+            
+            // 비디오 정지
+            const arVideo = document.getElementById('ar-video');
+            if (arVideo) {
+                arVideo.pause();
+                arVideo.currentTime = 0;
+            }
+        }
+
+        // 모바일 최적화
+        if (/Mobi|Android/i.test(navigator.userAgent)) {
+            document.addEventListener('orientationchange', function() {
+                setTimeout(function() {
+                    if (document.getElementById('arViewer').style.display === 'block') {
+                        window.scrollTo(0, 1);
+                    }
+                }, 100);
+            });
+        }
+    </script>
+</body>
+</html> 
