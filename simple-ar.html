@@ -2101,7 +2101,7 @@
                     scanTimeout = setTimeout(() => {
                         console.log('🔍 전체 화면 자동 이미지 감지 시작');
                         startAutoDetectionFullscreen();
-                    }, 300); // 0.3초 후 시작 (매우 빠르게)
+                    }, 200); // 0.2초 후 시작 (극도로 빠르게)
                 } else {
                     throw new Error('카메라 스트림을 가져올 수 없습니다');
                 }
@@ -2408,8 +2408,7 @@
             }
 
             scanInstructionsFullscreen.innerHTML = `
-                <span style="color: #4CAF50;">🔍 자동 이미지 검색 중...</span><br>
-                <span style="opacity: 0.8; font-size: 14px;">화면 전체에서 이미지를 자동으로 찾습니다</span>
+                <span style="color: #4CAF50;">🔍 이미지 검색 중...</span>
             `;
 
             // 자동 감지 영역 애니메이션 시작
@@ -2468,7 +2467,7 @@
                     });
 
                     // 매우 낮은 임계값으로 감지 민감도 향상
-                    const threshold = 0.02; // 2%만 일치해도 감지 (매우 관대하게)
+                    const threshold = 0.01; // 1%만 일치해도 감지 (극도로 관대하게)
                     
                     console.log(`🔍 전체 화면 자동 감지 ${detectionCount}: 최고 유사도 ${Math.round(bestScore * 100)}%`);
                     console.log(`📊 감지 상세 정보:`, {
@@ -2581,7 +2580,7 @@
                         }, 2000);
                     }
                 }
-            }, 300); // 0.3초마다 검색 (매우 빠르게)
+            }, 200); // 0.2초마다 검색 (극도로 빠르게)
         }
 
         function showFullscreenScanError(error) {
@@ -2806,34 +2805,34 @@
                     const img2 = new Image();
                     
                     // 더 작은 크기로 성능 향상
-                    canvas1.width = canvas2.width = 64; // 더 작게 해서 성능 향상
-                    canvas1.height = canvas2.height = 64;
+                    canvas1.width = canvas2.width = 32; // 극도로 작게 해서 성능 향상
+                    canvas1.height = canvas2.height = 32;
                     
                     let img1Loaded = false;
                     let img2Loaded = false;
                     
                     img1.onload = () => {
-                        ctx1.drawImage(img1, 0, 0, 64, 64);
+                        ctx1.drawImage(img1, 0, 0, 32, 32);
                         img1Loaded = true;
                         if (img2Loaded) performUltraSimpleComparison();
                     };
                     
                     img2.onload = () => {
-                        ctx2.drawImage(img2, 0, 0, 64, 64);
+                        ctx2.drawImage(img2, 0, 0, 32, 32);
                         img2Loaded = true;
                         if (img1Loaded) performUltraSimpleComparison();
                     };
                     
-                    function performUltraSimpleComparison() {
-                        try {
-                            const data1 = ctx1.getImageData(0, 0, 64, 64).data;
-                            const data2 = ctx2.getImageData(0, 0, 64, 64).data;
+                                            function performUltraSimpleComparison() {
+                            try {
+                                const data1 = ctx1.getImageData(0, 0, 32, 32).data;
+                                const data2 = ctx2.getImageData(0, 0, 32, 32).data;
                             
                             let matchingPixels = 0;
                             let totalPixels = 0;
                             
                             // 매우 간단한 픽셀 비교 (더 큰 샘플링)
-                            for (let i = 0; i < data1.length; i += 16) { // 4픽셀씩 건너뛰기 (더 조밀하게)
+                            for (let i = 0; i < data1.length; i += 8) { // 2픽셀씩 건너뛰기 (매우 조밀하게)
                                 const r1 = data1[i];
                                 const g1 = data1[i + 1];
                                 const b1 = data1[i + 2];
@@ -2845,8 +2844,8 @@
                                 // 매우 관대한 색상 차이 계산 (더 관대하게)
                                 const colorDiff = Math.abs(r1 - r2) + Math.abs(g1 - g2) + Math.abs(b1 - b2);
                                 
-                                // 매우 관대한 임계값 (500 - 매우 관대하게)
-                                if (colorDiff < 500) {
+                                // 매우 관대한 임계값 (600 - 극도로 관대하게)
+                                if (colorDiff < 600) {
                                     matchingPixels++;
                                 }
                                 
