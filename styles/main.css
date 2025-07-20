@@ -980,6 +980,29 @@ button {
     cursor: pointer !important;
 }
 
+/* 스캔 버튼 모바일 최적화 */
+#scanStartBtn {
+    pointer-events: auto !important;
+    cursor: pointer !important;
+    -webkit-tap-highlight-color: rgba(255, 107, 53, 0.3);
+    touch-action: manipulation;
+    user-select: none;
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+}
+
+#scanStartBtn:active {
+    transform: scale(0.98);
+    background: linear-gradient(45deg, #e55a2e, #e0851a);
+}
+
+#scanStartBtn:disabled {
+    opacity: 0.6;
+    transform: none;
+    background: #666;
+}
+
 /* AR Scene 컨테이너 */
 .ar-scene-container {
     width: 100%;

@@ -66,13 +66,62 @@
             
             // AR Scene은 필요할 때만 동적으로 생성됨
             
+            // 스캔 버튼 이벤트 리스너 추가 (모바일 터치 최적화)
+            const scanStartBtn = document.getElementById('scanStartBtn');
+            if (scanStartBtn) {
+                console.log('🔍 스캔 버튼 이벤트 리스너 추가');
+                
+                // 클릭 이벤트
+                scanStartBtn.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    console.log('🔍 스캔 버튼 클릭됨');
+                    startScan();
+                });
+                
+                // 터치 이벤트 (모바일 최적화)
+                scanStartBtn.addEventListener('touchstart', function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    console.log('🔍 스캔 버튼 터치됨');
+                    startScan();
+                }, { passive: false });
+                
+                // 터치 종료 이벤트도 추가
+                scanStartBtn.addEventListener('touchend', function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                }, { passive: false });
+            } else {
+                console.warn('⚠️ 스캔 버튼을 찾을 수 없음');
+            }
+            
             console.log('✅ AR 이미지 생성기 초기화 완료');
         });
 
         // 스캔 시작 함수
         function startScan() {
-            console.log('🔍 AR 스캔 시작');
-            startFullscreenScan();
+            console.log('🔍 AR 스캔 시작 - 함수 호출됨');
+            
+            // 모바일 환경 감지
+            const isMobile = /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+            console.log('📱 모바일 환경 감지:', isMobile);
+            
+            try {
+                startFullscreenScan();
+            } catch (error) {
+                console.error('❌ 스캔 시작 중 오류 발생:', error);
+                
+                // 오류 발생 시 사용자에게 알림
+                const scanInfo = document.querySelector('.scan-info');
+                if (scanInfo) {
+                    scanInfo.innerHTML = `
+                        <p style="color: #ff6b35;">❌ 스캔 시작 중 오류가 발생했습니다</p>
+                        <p>다시 시도해주세요.</p>
+                        <button class="btn" onclick="startScan()">🔄 다시 시도</button>
+                    `;
+                }
+            }
         }
 
         // AR 뷰어 닫기 함수
@@ -941,14 +990,14 @@
             const isMobile = /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
             const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
             
-            // 버튼 상태 확인
-            const btn = document.getElementById('startScanBtn');
-            if (btn) {
+            // 버튼 상태 확인 - 스캔 버튼 찾기
+            const scanStartBtn = document.getElementById('scanStartBtn');
+            if (scanStartBtn) {
                 console.log('✅ 스캔 버튼 찾음');
-                btn.disabled = true;
-                btn.textContent = '🔄 스캔 시작 중...';
+                scanStartBtn.disabled = true;
+                scanStartBtn.textContent = '🔄 스캔 시작 중...';
             } else {
-                console.error('❌ 스캔 버튼을 찾을 수 없음');
+                console.warn('⚠️ 스캔 버튼을 찾을 수 없음 (정상적인 동작)');
             }
             
             const fullscreenScanner = document.getElementById('fullscreenScanner');
