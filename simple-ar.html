@@ -3029,55 +3029,118 @@
         function showYouTubeOverlayAtImageArea(arData, framePosition) {
             console.log('AR 이미지 영역에 YouTube 폴백 표시');
             
+            // 먼저 모든 다른 오버레이 숨기기
+            hideAllOverlays();
+            
             const youtubeOverlay = document.getElementById('youtubeOverlay');
             const arStatus = document.getElementById('arStatus');
             
-            arStatus.textContent = '📺 AR 이미지 영역에 폴백 비디오 재생 중';
+            arStatus.textContent = '📺 AR 이미지 영역에 비디오 재생 중';
             
-            if (!window.arImageMapping) {
-                // 매핑 정보가 없으면 기본 중앙 위치
-                const defaultSize = 200;
-                const centerX = window.innerWidth / 2;
-                const centerY = window.innerHeight / 2;
+            // AR 이미지 매핑 정보를 먼저 계산
+            calculateARImageMappingPosition(arData, framePosition, null, null);
+            
+            // 매핑 정보가 계산될 때까지 잠시 대기
+            setTimeout(() => {
+                if (!window.arImageMapping) {
+                    // 매핑 정보가 없으면 기본 중앙 위치
+                    const defaultSize = 200;
+                    const centerX = window.innerWidth / 2;
+                    const centerY = window.innerHeight / 2;
+                    
+                    youtubeOverlay.style.position = 'fixed';
+                    youtubeOverlay.style.left = (centerX - defaultSize/2) + 'px';
+                    youtubeOverlay.style.top = (centerY - defaultSize/2) + 'px';
+                    youtubeOverlay.style.width = defaultSize + 'px';
+                    youtubeOverlay.style.height = defaultSize + 'px';
+                } else {
+                    // AR 이미지 영역에 정확히 배치
+                    const mapping = window.arImageMapping;
+                    youtubeOverlay.style.position = 'fixed';
+                    youtubeOverlay.style.left = mapping.imageLeft + 'px';
+                    youtubeOverlay.style.top = mapping.imageTop + 'px';
+                    youtubeOverlay.style.width = mapping.detectedImageWidth + 'px';
+                    youtubeOverlay.style.height = mapping.detectedImageHeight + 'px';
+                }
                 
-                youtubeOverlay.style.position = 'fixed';
-                youtubeOverlay.style.left = (centerX - defaultSize/2) + 'px';
-                youtubeOverlay.style.top = (centerY - defaultSize/2) + 'px';
-                youtubeOverlay.style.width = defaultSize + 'px';
-                youtubeOverlay.style.height = defaultSize + 'px';
-            } else {
-                // AR 이미지 영역에 정확히 배치
-                const mapping = window.arImageMapping;
-                youtubeOverlay.style.position = 'fixed';
-                youtubeOverlay.style.left = mapping.imageLeft + 'px';
-                youtubeOverlay.style.top = mapping.imageTop + 'px';
-                youtubeOverlay.style.width = mapping.detectedImageWidth + 'px';
-                youtubeOverlay.style.height = mapping.detectedImageHeight + 'px';
+                youtubeOverlay.style.borderRadius = '8px';
+                youtubeOverlay.style.border = '2px solid #ff6b35';
+                youtubeOverlay.style.zIndex = '1005'; // 다른 모든 요소보다 위에
+                youtubeOverlay.style.display = 'block';
+                youtubeOverlay.style.boxShadow = '0 0 20px rgba(255, 107, 53, 0.6)';
+                youtubeOverlay.style.transform = 'none'; // 초기 변형 제거
+                youtubeOverlay.style.opacity = '1'; // 초기 투명도 설정
+                
+                // YouTube iframe 내용 설정
+                youtubeOverlay.innerHTML = `
+                    <iframe 
+                        width="100%" 
+                        height="100%" 
+                        src="https://www.youtube.com/embed/dQw4w9WgXcQ?autoplay=1&mute=1&loop=1&playlist=dQw4w9WgXcQ&controls=1&modestbranding=1&rel=0"
+                        title="AR Video"
+                        frameborder="0"
+                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                        allowfullscreen
+                        style="border-radius: 6px;">
+                    </iframe>
+                `;
+                
+                // AR 이미지 추적 시뮬레이션 (YouTube가 이미지를 따라 이동)
+                if (window.arImageMapping) {
+                    startARImageTrackingForYouTube(arData, framePosition, youtubeOverlay);
+                }
+                
+            }, 100); // 매핑 계산 완료를 위한 짧은 지연
+        }
+        
+        function hideAllOverlays() {
+            console.log('모든 오버레이 숨기기');
+            
+            // AR 오버레이 컨테이너 숨기기
+            const arOverlayContainer = document.getElementById('arOverlayContainer');
+            if (arOverlayContainer) {
+                arOverlayContainer.style.display = 'none';
+                arOverlayContainer.classList.remove('active');
             }
             
-            youtubeOverlay.style.borderRadius = '8px';
-            youtubeOverlay.style.border = '2px solid #ff6b35';
-            youtubeOverlay.style.zIndex = '1001';
-            youtubeOverlay.style.display = 'block';
-            youtubeOverlay.style.boxShadow = '0 0 20px rgba(255, 107, 53, 0.6)';
+            // 오버레이 비디오 숨기기
+            const overlayVideo = document.getElementById('overlayVideo');
+            if (overlayVideo) {
+                overlayVideo.style.display = 'none';
+                overlayVideo.pause();
+                overlayVideo.src = '';
+            }
             
-            // YouTube iframe 내용 설정
-            youtubeOverlay.innerHTML = `
-                <iframe 
-                    width="100%" 
-                    height="100%" 
-                    src="https://www.youtube.com/embed/dQw4w9WgXcQ?autoplay=1&mute=1&loop=1&playlist=dQw4w9WgXcQ&controls=1&modestbranding=1&rel=0"
-                    title="AR Fallback Video"
-                    frameborder="0"
-                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                    allowfullscreen
-                    style="border-radius: 6px;">
-                </iframe>
-            `;
+            // 오버레이 프레임 숨기기
+            const overlayFrame = document.getElementById('overlayFrame');
+            if (overlayFrame) {
+                overlayFrame.style.display = 'none';
+            }
             
-            // AR 이미지 추적 시뮬레이션 (YouTube도 이미지를 따라 이동)
-            if (window.arImageMapping) {
-                startARImageTrackingForYouTube(arData, framePosition, youtubeOverlay);
+            // 오버레이 인스트럭션 숨기기
+            const overlayInstructions = document.getElementById('overlayInstructions');
+            if (overlayInstructions) {
+                overlayInstructions.style.display = 'none';
+            }
+            
+            // A-Frame 요소들 숨기기
+            try {
+                const arScene = document.getElementById('ar-scene');
+                if (arScene) {
+                    arScene.style.display = 'none';
+                }
+                
+                const arVideoPlane = document.getElementById('ar-video-plane');
+                if (arVideoPlane) {
+                    arVideoPlane.setAttribute('visible', false);
+                }
+                
+                const arOverlay = document.getElementById('ar-overlay');
+                if (arOverlay) {
+                    arOverlay.setAttribute('visible', false);
+                }
+            } catch (e) {
+                console.warn('A-Frame 요소 숨기기 실패:', e);
             }
         }
 
@@ -3820,15 +3883,17 @@
             arViewer.style.display = 'none';
             arViewer.classList.remove('active');
             
-            // 오버레이 요소들 숨김
-            const arOverlayContainer = document.getElementById('arOverlayContainer');
-            const youtubeOverlay = document.getElementById('youtubeOverlay');
-            const overlayVideo = document.getElementById('overlayVideo');
-            const overlayFrame = document.getElementById('overlayFrame');
-            const overlayContainer = document.querySelector('.ar-overlay-container');
+            // 모든 오버레이 완전히 숨기기
+            hideAllOverlays();
             
-            if (arOverlayContainer) arOverlayContainer.classList.remove('active');
-            if (youtubeOverlay) youtubeOverlay.classList.remove('active');
+            // YouTube 오버레이도 숨기기
+            const youtubeOverlay = document.getElementById('youtubeOverlay');
+            if (youtubeOverlay) {
+                youtubeOverlay.style.display = 'none';
+                youtubeOverlay.classList.remove('active');
+                youtubeOverlay.innerHTML = ''; // 내용도 완전히 제거
+            }
+            
             document.getElementById('cameraPreview').classList.add('hidden');
             
             // 위치 기반 오버레이 정리
