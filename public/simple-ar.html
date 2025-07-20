@@ -1113,7 +1113,7 @@
                     </div>
                 </div>
 
-                <button class="btn" id="startScanBtn" onclick="startFullscreenScan()">
+                <button class="btn" id="startScanBtn" onclick="handleScanButtonClick()">
                     📷 이미지 스캔 시작
                 </button>
             </div>
@@ -2043,7 +2043,17 @@
         }
 
         async function startFullscreenScan() {
-            console.log('전체 화면 스캔 시작');
+            console.log('🔍 전체 화면 스캔 시작 - 함수 호출됨');
+            
+            // 버튼 상태 확인
+            const btn = document.getElementById('startScanBtn');
+            if (btn) {
+                console.log('✅ 스캔 버튼 찾음');
+                btn.disabled = true;
+                btn.textContent = '🔄 스캔 시작 중...';
+            } else {
+                console.error('❌ 스캔 버튼을 찾을 수 없음');
+            }
             
             const fullscreenScanner = document.getElementById('fullscreenScanner');
             const scanStatusFullscreen = document.getElementById('scanStatusFullscreen');
@@ -4034,6 +4044,38 @@
         function closeFullscreenAR() {
             hideFullscreenAR();
             console.log('✕ 전체 화면 AR 닫기');
+        }
+
+        // 스캔 버튼 클릭 핸들러
+        function handleScanButtonClick() {
+            console.log('🔍 스캔 버튼 클릭됨 - 핸들러 호출됨');
+            
+            try {
+                // 버튼 상태 변경
+                const btn = document.getElementById('startScanBtn');
+                if (btn) {
+                    btn.disabled = true;
+                    btn.textContent = '🔄 스캔 시작 중...';
+                    console.log('✅ 스캔 버튼 상태 변경됨');
+                }
+                
+                // 전체 화면 스캔 시작
+                console.log('🚀 startFullscreenScan 함수 호출 시작');
+                startFullscreenScan();
+                
+            } catch (error) {
+                console.error('❌ 스캔 버튼 클릭 핸들러 오류:', error);
+                
+                // 오류 발생 시 버튼 상태 복원
+                const btn = document.getElementById('startScanBtn');
+                if (btn) {
+                    btn.disabled = false;
+                    btn.textContent = '📷 이미지 스캔 시작';
+                }
+                
+                // 사용자에게 오류 알림
+                alert('스캔 시작 중 오류가 발생했습니다. 다시 시도해주세요.');
+            }
         }
 
         function startImageDetectionOverlay(arData) {
