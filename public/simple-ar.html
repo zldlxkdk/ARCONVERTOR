@@ -3652,7 +3652,18 @@
             }
             
             const arData = JSON.parse(arDataJson);
-            console.log('🎯 스캔 AR 로딩 시작:', arId, arData);
+            console.log('🎯 스캔 AR 로딩 시작:', arId);
+            console.log('🎯 AR 데이터 상세 정보:', {
+                id: arData.id,
+                hasVideoData: !!arData.videoData,
+                videoDataLength: arData.videoData ? arData.videoData.length : 0,
+                hasTargetImage: !!arData.targetImage,
+                targetImageLength: arData.targetImage ? arData.targetImage.length : 0,
+                fileName: arData.fileName,
+                duration: arData.duration,
+                youtubeUrl: arData.youtubeUrl,
+                type: arData.type
+            });
             
             // 스캔 AR 오버레이 표시 (불필요한 UI 제거)
             const scannerArOverlay = document.getElementById('scannerArOverlay');
@@ -3791,7 +3802,14 @@
             const scannerOverlayVideo = document.getElementById('scannerOverlayVideo');
             const scannerArStatus = document.getElementById('scannerArStatus');
             
-            console.log('🎬 스캔 비디오 로드 시작:', arData.videoData ? '비디오 데이터 있음' : '비디오 데이터 없음');
+            console.log('🎬 스캔 비디오 로드 시작');
+            console.log('🎬 AR 데이터 확인:', {
+                hasVideoData: !!arData.videoData,
+                videoDataLength: arData.videoData ? arData.videoData.length : 0,
+                videoDataStart: arData.videoData ? arData.videoData.substring(0, 50) + '...' : '없음',
+                youtubeUrl: arData.youtubeUrl,
+                id: arData.id
+            });
             
             // 비디오 요소 초기화
             scannerOverlayVideo.pause();
@@ -3832,24 +3850,59 @@
                 // Base64 데이터를 Blob으로 변환
                 try {
                     const base64Data = arData.videoData;
-                    const byteCharacters = atob(base64Data.split(',')[1] || base64Data);
+                    console.log('🎬 Base64 데이터 분석:', {
+                        totalLength: base64Data.length,
+                        hasDataUrlPrefix: base64Data.startsWith('data:'),
+                        dataUrlPrefix: base64Data.split(',')[0] || '없음',
+                        actualDataLength: base64Data.split(',')[1] ? base64Data.split(',')[1].length : 0
+                    });
+                    
+                    // Base64 데이터 파싱
+                    const dataUrlParts = base64Data.split(',');
+                    const actualBase64 = dataUrlParts[1] || base64Data;
+                    
+                    console.log('🎬 실제 Base64 데이터 길이:', actualBase64.length);
+                    
+                    const byteCharacters = atob(actualBase64);
+                    console.log('🎬 디코딩된 바이트 수:', byteCharacters.length);
+                    
                     const byteNumbers = new Array(byteCharacters.length);
                     for (let i = 0; i < byteCharacters.length; i++) {
                         byteNumbers[i] = byteCharacters.charCodeAt(i);
                     }
                     const byteArray = new Uint8Array(byteNumbers);
-                    const blob = new Blob([byteArray], { type: 'video/mp4' });
-                    const videoUrl = URL.createObjectURL(blob);
                     
-                    console.log('🎬 Base64를 Blob URL로 변환 완료:', videoUrl);
+                    console.log('🎬 바이트 배열 생성 완료:', {
+                        byteArrayLength: byteArray.length,
+                        firstBytes: Array.from(byteArray.slice(0, 10))
+                    });
+                    
+                    const blob = new Blob([byteArray], { type: 'video/mp4' });
+                    console.log('🎬 Blob 생성 완료:', {
+                        blobSize: blob.size,
+                        blobType: blob.type
+                    });
+                    
+                    const videoUrl = URL.createObjectURL(blob);
+                    console.log('🎬 Blob URL 생성 완료:', videoUrl);
+                    
                     scannerOverlayVideo.src = videoUrl;
                     
                     // 비디오 로드 시작 이벤트
                     scannerOverlayVideo.onloadstart = () => {
                         console.log('🎬 스캔 비디오 로드 시작');
+                        console.log('🎬 비디오 요소 상태:', {
+                            src: scannerOverlayVideo.src,
+                            readyState: scannerOverlayVideo.readyState,
+                            networkState: scannerOverlayVideo.networkState,
+                            paused: scannerOverlayVideo.paused,
+                            ended: scannerOverlayVideo.ended
+                        });
+                        
                         // 로드 시작 시에도 재생 시도
                         setTimeout(() => {
                             if (scannerOverlayVideo.readyState >= 1) {
+                                console.log('🎬 초기 로드 시 재생 시도 (readyState >= 1)');
                                 const playPromise = scannerOverlayVideo.play();
                                 if (playPromise !== undefined) {
                                     playPromise.then(() => {
@@ -3858,6 +3911,8 @@
                                         console.log('⚠️ 초기 로드 시 재생 실패, 메인 로드 대기:', error);
                                     });
                                 }
+                            } else {
+                                console.log('⚠️ 초기 로드 시 readyState 부족:', scannerOverlayVideo.readyState);
                             }
                         }, 200);
                     };
@@ -3881,6 +3936,20 @@
                     // 비디오 데이터 로드 완료 이벤트
                     scannerOverlayVideo.onloadeddata = () => {
                         console.log('🎬 스캔 비디오 데이터 로드 완료');
+                        console.log('🎬 비디오 요소 상세 상태:', {
+                            src: scannerOverlayVideo.src,
+                            readyState: scannerOverlayVideo.readyState,
+                            networkState: scannerOverlayVideo.networkState,
+                            paused: scannerOverlayVideo.paused,
+                            ended: scannerOverlayVideo.ended,
+                            currentTime: scannerOverlayVideo.currentTime,
+                            duration: scannerOverlayVideo.duration,
+                            videoWidth: scannerOverlayVideo.videoWidth,
+                            videoHeight: scannerOverlayVideo.videoHeight,
+                            autoplay: scannerOverlayVideo.autoplay,
+                            loop: scannerOverlayVideo.loop,
+                            muted: scannerOverlayVideo.muted
+                        });
                         
                         // 비디오 스타일 최종 확인 (이미지에 딱 맞게)
                         scannerOverlayVideo.style.background = 'transparent';
@@ -3959,6 +4028,14 @@
                     // 비디오 로드 실패 시
                     scannerOverlayVideo.onerror = (e) => {
                         console.error('❌ 스캔 비디오 로드 실패:', e);
+                        console.error('❌ 비디오 오류 상세 정보:', {
+                            error: scannerOverlayVideo.error,
+                            errorCode: scannerOverlayVideo.error ? scannerOverlayVideo.error.code : 'N/A',
+                            errorMessage: scannerOverlayVideo.error ? scannerOverlayVideo.error.message : 'N/A',
+                            readyState: scannerOverlayVideo.readyState,
+                            networkState: scannerOverlayVideo.networkState,
+                            src: scannerOverlayVideo.src
+                        });
                         // YouTube 폴백
                         setTimeout(() => {
                             loadScannerYouTube(arData);
