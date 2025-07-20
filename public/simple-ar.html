@@ -1160,33 +1160,20 @@
                     height: 300px;
                 "></video>
                 
-                <!-- AR 프레임 -->
-                <div id="fullscreenOverlayFrame" class="fullscreen-overlay-frame" style="
-                    position: absolute;
-                    border: 3px dashed #4CAF50;
-                    border-radius: 15px;
-                    background: rgba(76, 175, 80, 0.1);
-                    pointer-events: none;
-                    animation: frameGlow 2s infinite alternate;
-                    z-index: 1001;
-                    display: none;
-                "></div>
+
                 
                 <!-- AR 상태 표시 -->
                 <div id="fullscreenArStatus" class="fullscreen-ar-status" style="
                     position: absolute;
-                    top: 20px;
+                    top: 60px;
                     left: 50%;
                     transform: translateX(-50%);
-                    background: rgba(0, 0, 0, 0.9);
+                    background: rgba(0, 0, 0, 0.8);
                     color: white;
-                    padding: 10px 20px;
-                    border-radius: 20px;
-                    font-size: 14px;
-                    font-weight: 600;
+                    padding: 8px 16px;
+                    border-radius: 15px;
+                    font-size: 12px;
                     text-align: center;
-                    backdrop-filter: blur(10px);
-                    border: 2px solid #ff6b35;
                     z-index: 1003;
                     display: none;
                 "></div>
@@ -1198,60 +1185,46 @@
                     left: 50%;
                     transform: translateX(-50%);
                     display: flex;
-                    gap: 10px;
+                    gap: 8px;
                     z-index: 1003;
                     display: none;
                 ">
                     <button onclick="toggleFullscreenVideoSound()" class="fullscreen-ar-btn" style="
-                        background: #4CAF50;
+                        background: rgba(76, 175, 80, 0.9);
                         color: white;
                         border: none;
-                        padding: 8px 16px;
-                        border-radius: 20px;
+                        padding: 6px 12px;
+                        border-radius: 15px;
                         cursor: pointer;
-                        font-size: 12px;
-                        font-weight: 600;
-                    ">🔊 소리</button>
+                        font-size: 11px;
+                    ">🔊</button>
                     <button onclick="closeFullscreenAR()" class="fullscreen-ar-btn" style="
-                        background: #ff6b35;
+                        background: rgba(255, 107, 53, 0.9);
                         color: white;
                         border: none;
-                        padding: 8px 16px;
-                        border-radius: 20px;
+                        padding: 6px 12px;
+                        border-radius: 15px;
                         cursor: pointer;
-                        font-size: 12px;
-                        font-weight: 600;
-                    ">✕ 닫기</button>
+                        font-size: 11px;
+                    ">✕</button>
                 </div>
             </div>
             
-            <!-- 자동 이미지 감지 영역 표시 -->
-            <div class="auto-detection-area" id="autoDetectionArea" style="
+            <!-- 간단한 안내 메시지 -->
+            <div class="scan-instructions-fullscreen" id="scanInstructionsFullscreen" style="
                 position: absolute;
-                top: 50%;
+                top: 20px;
                 left: 50%;
-                transform: translate(-50%, -50%);
-                width: 80%;
-                height: 60%;
-                border: 2px dashed #4CAF50;
+                transform: translateX(-50%);
+                background: rgba(0, 0, 0, 0.7);
+                color: white;
+                padding: 10px 20px;
                 border-radius: 20px;
-                background: rgba(76, 175, 80, 0.1);
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                color: #4CAF50;
-                font-size: 16px;
-                font-weight: 600;
+                font-size: 14px;
                 text-align: center;
                 z-index: 1000;
             ">
-                🔍 자동 이미지 감지 영역<br>
-                <span style="font-size: 14px; opacity: 0.8;">화면 전체에서 이미지를 자동으로 찾습니다</span>
-            </div>
-            
-            <div class="scan-instructions-fullscreen" id="scanInstructionsFullscreen">
-                화면 어디든 AR 이미지를 비춰주세요<br>
-                <span style="opacity: 0.7;">자동으로 이미지를 찾아서 분석합니다</span>
+                AR 이미지를 비춰주세요
             </div>
         </div>
 
@@ -2128,7 +2101,7 @@
                     scanTimeout = setTimeout(() => {
                         console.log('🔍 전체 화면 자동 이미지 감지 시작');
                         startAutoDetectionFullscreen();
-                    }, 500); // 0.5초 후 시작 (더 빠르게)
+                    }, 300); // 0.3초 후 시작 (매우 빠르게)
                 } else {
                     throw new Error('카메라 스트림을 가져올 수 없습니다');
                 }
@@ -2495,7 +2468,7 @@
                     });
 
                     // 매우 낮은 임계값으로 감지 민감도 향상
-                    const threshold = 0.05; // 5%만 일치해도 감지 (더 관대하게)
+                    const threshold = 0.02; // 2%만 일치해도 감지 (매우 관대하게)
                     
                     console.log(`🔍 전체 화면 자동 감지 ${detectionCount}: 최고 유사도 ${Math.round(bestScore * 100)}%`);
                     console.log(`📊 감지 상세 정보:`, {
@@ -2505,17 +2478,8 @@
                         통과여부: bestMatch && bestScore > threshold ? '성공' : '실패'
                     });
 
-                    // 진행률 표시
-                    const progress = Math.round((detectionCount / maxDetections) * 100);
-                    scanStatusFullscreen.textContent = `🔍 자동 이미지 검색 중... ${progress}%`;
-                    
-                    // 자동 감지 영역 업데이트
-                    autoDetectionArea.innerHTML = `
-                        🔍 자동 이미지 감지 영역<br>
-                        <span style="font-size: 14px; opacity: 0.8;">감지도: ${Math.round(bestScore * 100)}%</span><br>
-                        <span style="font-size: 12px; opacity: 0.6;">진행률: ${progress}%</span><br>
-                        <span style="font-size: 10px; opacity: 0.5;">검색된 이미지: ${arKeys.length}개</span>
-                    `;
+                    // 간단한 상태 표시
+                    scanStatusFullscreen.textContent = `🔍 이미지 검색 중...`;
 
                     if (bestMatch && bestScore > threshold) {
                         // 새로운 AR 이미지가 감지되었거나 다른 AR 이미지가 감지된 경우
@@ -2527,21 +2491,9 @@
                             loadFullscreenAR(bestMatch.id);
                         }
                         
-                        // 계속 감지 (이미지가 사라질 수 있으므로)
-                        const markerType = bestMatch.hasSpecialMarkers ? '특수 마커' : '일반 이미지';
-                        
+                        // 간단한 성공 메시지
                         scanInstructionsFullscreen.innerHTML = `
-                            <span style="color: #4CAF50;">🎯 ${markerType} AR 이미지 감지됨 (${Math.round(bestScore * 100)}%)</span><br>
-                            <span style="opacity: 0.8; color: #2196F3;">AR 영상이 재생되고 있습니다</span>
-                        `;
-
-                        // 자동 감지 영역 성공 표시
-                        autoDetectionArea.style.border = '3px solid #4CAF50';
-                        autoDetectionArea.style.background = 'rgba(76, 175, 80, 0.3)';
-                        autoDetectionArea.style.animation = 'none';
-                        autoDetectionArea.innerHTML = `
-                            ✅ AR 이미지 감지됨<br>
-                            <span style="font-size: 14px; opacity: 0.8;">영상 재생 중...</span>
+                            <span style="color: #4CAF50;">🎯 AR 이미지 감지됨</span>
                         `;
                         
                     } else {
@@ -2552,21 +2504,9 @@
                             hideFullscreenAR();
                         }
                         
-                        // 계속 인식 시도
+                        // 간단한 검색 메시지
                         scanInstructionsFullscreen.innerHTML = `
-                            <span style="color: #4CAF50;">🔍 자동 이미지 검색 중...</span><br>
-                            <span style="opacity: 0.8; font-size: 14px;">최고 유사도: ${Math.round(bestScore * 100)}%</span>
-                        `;
-                        
-                        // 자동 감지 영역 원래 상태로 복원
-                        autoDetectionArea.style.border = '2px dashed #4CAF50';
-                        autoDetectionArea.style.background = 'rgba(76, 175, 80, 0.1)';
-                        autoDetectionArea.style.animation = 'pulse 2s infinite';
-                        autoDetectionArea.innerHTML = `
-                            🔍 자동 이미지 감지 영역<br>
-                            <span style="font-size: 14px; opacity: 0.8;">감지도: ${Math.round(bestScore * 100)}%</span><br>
-                            <span style="font-size: 12px; opacity: 0.6;">진행률: ${progress}%</span><br>
-                            <span style="font-size: 10px; opacity: 0.5;">검색된 이미지: ${arKeys.length}개</span>
+                            <span style="color: #4CAF50;">🔍 이미지 검색 중...</span>
                         `;
                     }
                     
@@ -2641,7 +2581,7 @@
                         }, 2000);
                     }
                 }
-            }, 500); // 0.5초마다 검색 (더 빠르게)
+            }, 300); // 0.3초마다 검색 (매우 빠르게)
         }
 
         function showFullscreenScanError(error) {
@@ -2905,8 +2845,8 @@
                                 // 매우 관대한 색상 차이 계산 (더 관대하게)
                                 const colorDiff = Math.abs(r1 - r2) + Math.abs(g1 - g2) + Math.abs(b1 - b2);
                                 
-                                // 매우 관대한 임계값 (400 - 더 관대하게)
-                                if (colorDiff < 400) {
+                                // 매우 관대한 임계값 (500 - 매우 관대하게)
+                                if (colorDiff < 500) {
                                     matchingPixels++;
                                 }
                                 
@@ -4159,13 +4099,11 @@
             const fullscreenArStatus = document.getElementById('fullscreenArStatus');
             const fullscreenArControls = document.getElementById('fullscreenArControls');
             const fullscreenOverlayVideo = document.getElementById('fullscreenOverlayVideo');
-            const fullscreenOverlayFrame = document.getElementById('fullscreenOverlayFrame');
             
             fullscreenArOverlay.style.display = 'none';
             fullscreenArStatus.style.display = 'none';
             fullscreenArControls.style.display = 'none';
             fullscreenOverlayVideo.style.display = 'none';
-            fullscreenOverlayFrame.style.display = 'none';
             
             // 비디오 정리
             if (fullscreenOverlayVideo.src) {
@@ -4179,19 +4117,9 @@
         // 전체 화면 AR 위치 계산 (CSS로 고정)
         function calculateFullscreenARPosition(arData) {
             const fullscreenOverlayVideo = document.getElementById('fullscreenOverlayVideo');
-            const fullscreenOverlayFrame = document.getElementById('fullscreenOverlayFrame');
             
             // 비디오는 CSS로 중앙 정렬 (400x300)
             fullscreenOverlayVideo.style.display = 'block';
-            
-            // 프레임은 비디오 주변에 표시
-            const frameMargin = 15;
-            fullscreenOverlayFrame.style.left = '50%';
-            fullscreenOverlayFrame.style.top = '50%';
-            fullscreenOverlayFrame.style.transform = 'translate(-50%, -50%)';
-            fullscreenOverlayFrame.style.width = (400 + frameMargin * 2) + 'px';
-            fullscreenOverlayFrame.style.height = (300 + frameMargin * 2) + 'px';
-            fullscreenOverlayFrame.style.display = 'block';
             
             console.log('📍 전체 화면 AR 위치 설정: 중앙 정렬 (400x300)');
         }
