@@ -2175,8 +2175,7 @@
                 scanInstructionsFullscreen.innerHTML = `
                     📱 모바일 브라우저에서 카메라 권한을 허용해주세요<br>
                     <span style="opacity: 0.7;">권한 요청 팝업이 나타날 수 있습니다</span>
-                    ${isIOS ? '<br><span style="color: #ff6b35;">iOS Safari에서는 홈 화면에 추가 후 사용하시면 더 안정적입니다</span>' : ''}<br>
-                    <span style="opacity: 0.5; font-size: 12px;">💡 권한이 차단되면 최신 AR 이미지로 직접 실행됩니다</span>
+                    ${isIOS ? '<br><span style="color: #ff6b35;">iOS Safari에서는 홈 화면에 추가 후 사용하시면 더 안정적입니다</span>' : ''}
                 `;
             } else {
                 scanStatusFullscreen.textContent = '카메라 권한을 요청하고 있습니다...';
@@ -2218,21 +2217,28 @@
                 const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
                 const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
                 
-                console.log('📱 모바일 카메라 접근 시도 시작');
-                console.log('📱 모바일 환경:', isMobile, 'iOS:', isIOS);
+                console.log('📱 모바일 카메라 접근 시도 - gh-pages 환경');
+                console.log('📱 모바일 환경:', isMobile ? '모바일' : '데스크톱');
+                console.log('📱 iOS 환경:', isIOS ? 'iOS' : 'Android/기타');
                 
-                // 1단계: 가장 간단한 설정으로 시도
+                // gh-pages는 HTTPS이므로 카메라 접근이 더 안정적
                 try {
+                    // 1단계: 가장 간단한 설정으로 시도
                     console.log('📱 1단계: 기본 카메라 접근 시도');
+                    
+                    // 사용자 상호작용 보장을 위한 지연
+                    await new Promise(resolve => setTimeout(resolve, 100));
+                    
                     stream = await navigator.mediaDevices.getUserMedia({ 
                         video: true 
                     });
                     console.log('✅ 기본 카메라 접근 성공');
-                } catch (basicError) {
-                    console.warn('❌ 기본 카메라 접근 실패:', basicError.message);
                     
-                    // 2단계: 후면 카메라 시도
+                } catch (basicError) {
+                    console.warn('📱 기본 카메라 접근 실패:', basicError.message);
+                    
                     try {
+                        // 2단계: 후면 카메라 시도
                         console.log('📱 2단계: 후면 카메라 접근 시도');
                         stream = await navigator.mediaDevices.getUserMedia({ 
                             video: { 
@@ -2242,11 +2248,12 @@
                             } 
                         });
                         console.log('✅ 후면 카메라 접근 성공');
-                    } catch (envError) {
-                        console.warn('❌ 후면 카메라 접근 실패:', envError.message);
                         
-                        // 3단계: 전면 카메라 시도
+                    } catch (envError) {
+                        console.warn('📱 후면 카메라 접근 실패:', envError.message);
+                        
                         try {
+                            // 3단계: 전면 카메라 시도
                             console.log('📱 3단계: 전면 카메라 접근 시도');
                             stream = await navigator.mediaDevices.getUserMedia({ 
                                 video: { 
@@ -2256,11 +2263,12 @@
                                 } 
                             });
                             console.log('✅ 전면 카메라 접근 성공');
-                        } catch (userError) {
-                            console.warn('❌ 전면 카메라 접근 실패:', userError.message);
                             
-                            // 4단계: 매우 낮은 해상도로 시도
+                        } catch (userError) {
+                            console.warn('📱 전면 카메라 접근 실패:', userError.message);
+                            
                             try {
+                                // 4단계: 낮은 해상도로 시도
                                 console.log('📱 4단계: 낮은 해상도 카메라 접근 시도');
                                 stream = await navigator.mediaDevices.getUserMedia({ 
                                     video: {
@@ -2269,25 +2277,9 @@
                                     }
                                 });
                                 console.log('✅ 낮은 해상도 카메라 접근 성공');
+                                
                             } catch (finalError) {
-                                console.error('❌ 모든 카메라 접근 시도 실패:', finalError);
-                                
-                                // iOS Safari 특별 처리
-                                if (isIOS) {
-                                    scanInstructionsFullscreen.innerHTML = `
-                                        📱 iOS Safari에서 카메라 접근이 차단되었습니다<br>
-                                        <span style="color: #ff6b35;">설정 > Safari > 카메라 > 허용으로 변경해주세요</span><br>
-                                        <span style="opacity: 0.7;">또는 홈 화면에 추가 후 사용하세요</span><br>
-                                        <span style="opacity: 0.5; font-size: 12px;">💡 최신 AR 이미지로 직접 실행할 수 있습니다</span>
-                                    `;
-                                } else {
-                                    scanInstructionsFullscreen.innerHTML = `
-                                        📱 카메라 접근이 차단되었습니다<br>
-                                        <span style="color: #ff6b35;">브라우저 설정에서 카메라 권한을 허용해주세요</span><br>
-                                        <span style="opacity: 0.5; font-size: 12px;">💡 최신 AR 이미지로 직접 실행할 수 있습니다</span>
-                                    `;
-                                }
-                                
+                                console.error('📱 모든 카메라 접근 시도 실패:', finalError);
                                 throw new Error(`모바일 카메라 접근 실패: ${finalError.message}`);
                             }
                         }
@@ -2298,7 +2290,7 @@
                     console.log('📱 비디오 스트림 설정 시작');
                     scannerVideoFullscreen.srcObject = stream;
                     
-                    // 모바일 비디오 스트림 시작 (더 안정적인 방식)
+                    // 모바일 최적화: 안정적인 비디오 스트림 시작
                     await new Promise((resolve, reject) => {
                         const timeout = setTimeout(() => {
                             console.warn('📱 모바일 비디오 시작 시간 초과, 계속 진행');
@@ -2309,7 +2301,7 @@
                             console.log('📱 비디오 메타데이터 로드 완료');
                             clearTimeout(timeout);
                             
-                            // iOS Safari에서 자동 재생 정책 대응
+                            // 모바일에서 play() 호출
                             const playPromise = scannerVideoFullscreen.play();
                             
                             if (playPromise !== undefined) {
@@ -2324,8 +2316,7 @@
                                         console.log('📱 iOS 자동 재생 정책 감지, 사용자 상호작용 대기');
                                         scanInstructionsFullscreen.innerHTML = `
                                             📱 화면을 터치하여 카메라를 활성화하세요<br>
-                                            <span style="opacity: 0.7;">iOS에서 자동 재생이 차단되었습니다</span><br>
-                                            <span style="opacity: 0.5; font-size: 12px;">💡 터치 후 AR 이미지를 카메라에 비춰주세요</span>
+                                            <span style="opacity: 0.7;">iOS에서 자동 재생이 제한되어 있습니다</span>
                                         `;
                                         
                                         // 사용자 터치 이벤트 대기
@@ -2333,12 +2324,16 @@
                                             scannerVideoFullscreen.play().then(() => {
                                                 console.log('✅ iOS 터치 후 비디오 재생 성공');
                                                 resolve();
-                                            }).catch(resolve); // 실패해도 계속 진행
+                                            }).catch(() => {
+                                                console.warn('📱 iOS 터치 후 재생 실패, 계속 진행');
+                                                resolve();
+                                            });
                                             document.removeEventListener('touchstart', handleTouch);
                                         };
                                         document.addEventListener('touchstart', handleTouch, { once: true });
                                     } else {
-                                        resolve(); // 다른 오류는 무시하고 계속 진행
+                                        // 다른 오류의 경우에도 계속 진행
+                                        resolve();
                                     }
                                 });
                             } else {
@@ -2352,7 +2347,7 @@
                             resolve(); // 오류가 발생해도 계속 진행
                         };
                         
-                        // 추가 이벤트 리스너들
+                        // 추가 이벤트 리스너
                         scannerVideoFullscreen.oncanplay = () => {
                             console.log('📱 모바일 비디오 재생 가능');
                         };
@@ -2360,42 +2355,29 @@
                         scannerVideoFullscreen.onloadeddata = () => {
                             console.log('📱 모바일 비디오 데이터 로드 완료');
                         };
-                        
-                        scannerVideoFullscreen.onplaying = () => {
-                            console.log('📱 모바일 비디오 재생 중');
-                        };
                     });
                     
                     // 성공 시 안내 메시지 업데이트
                     scanStatusFullscreen.textContent = '🔍 AR 이미지 감지 준비 완료';
                     scanInstructionsFullscreen.innerHTML = `
                         📱 카메라를 AR 이미지에 비춰주세요<br>
-                        <span style="opacity: 0.7;">자동으로 이미지를 찾아서 분석합니다</span><br>
-                        <span style="opacity: 0.5; font-size: 12px;">💡 밝은 조명에서 20-30cm 거리에서 스캔하세요</span>
+                        <span style="opacity: 0.7;">자동으로 이미지를 찾아서 분석합니다</span>
+                        ${isIOS ? '<br><span style="color: #ff6b35;">iOS: 화면을 터치하면 더 안정적으로 작동합니다</span>' : ''}
                     `;
                     
-                    // 자동 감지 시작 (더 빠르게)
+                    // 자동 감지 시작 (iOS에서는 더 긴 지연)
+                    const detectionDelay = isIOS ? 1000 : 500;
                     scanTimeout = setTimeout(() => {
                         console.log('🔍 모바일 자동 이미지 감지 시작');
                         startAutoDetectionFullscreen();
-                    }, 200); // 0.2초 후 시작
+                    }, detectionDelay);
                     
-                    // 추가: 모바일에서 카메라가 제대로 동작하는지 확인
-                    setTimeout(() => {
-                        if (scannerVideoFullscreen.readyState >= 2) { // HAVE_CURRENT_DATA
-                            console.log('✅ 모바일 카메라 스트림 정상 동작 확인');
-                            scanStatusFullscreen.textContent = '🔍 AR 이미지 감지 중...';
-                        } else {
-                            console.warn('⚠️ 모바일 카메라 스트림 상태 확인 필요:', scannerVideoFullscreen.readyState);
-                            scanStatusFullscreen.textContent = '⚠️ 카메라 초기화 중...';
-                        }
-                    }, 1000);
                 } else {
                     throw new Error('카메라 스트림을 가져올 수 없습니다');
                 }
                 
             } catch (error) {
-                console.error('❌ 모바일 카메라 접근 실패:', error);
+                console.error('📱 모바일 카메라 접근 실패:', error);
                 showFullscreenScanError(error);
             }
         }
@@ -2603,15 +2585,13 @@
             if (!video || !video.srcObject) {
                 console.log('🔍 전체 화면 카메라가 없음, 직접 감지 모드로 실행');
                 
-                // 모바일에서 카메라 접근이 실패했을 때의 처리
-                scanStatusFullscreen.textContent = '📱 카메라 접근 실패 - 직접 모드';
-                scanInstructionsFullscreen.innerHTML = `
-                    📱 카메라 접근이 차단되었습니다<br>
-                    <span style="color: #ff6b35;">최신 AR 이미지로 직접 실행합니다...</span>
-                `;
-                
                 const latestKey = arKeys[arKeys.length - 1];
                 const arId = latestKey.replace('arData_', '');
+                
+                scanInstructionsFullscreen.innerHTML = `
+                    🎯 이미지 자동 감지!<br>
+                    <span style="color: #4CAF50;">AR 영상을 로딩합니다...</span>
+                `;
                 
                 setTimeout(() => {
                     try {
@@ -2623,7 +2603,7 @@
                             <span style="opacity: 0.8;">다시 시도해주세요</span>
                         `;
                     }
-                }, 2000);
+                }, 1000);
                 return;
             }
 
@@ -2686,8 +2666,8 @@
                         }
                     });
 
-                    // 모바일에서 더 관대한 임계값으로 감지 민감도 향상
-                    const threshold = 0.001; // 0.1%만 일치해도 감지 (극도로 관대하게)
+                    // 매우 낮은 임계값으로 감지 민감도 향상
+                    const threshold = 0.005; // 0.5%만 일치해도 감지 (극도로 관대하게)
                     
                     console.log(`🔍 전체 화면 자동 감지 ${detectionCount}: 최고 유사도 ${Math.round(bestScore * 100)}%`);
                     console.log(`📊 감지 상세 정보:`, {
@@ -2697,8 +2677,8 @@
                         통과여부: bestMatch && bestScore > threshold ? '성공' : '실패'
                     });
 
-                    // 모바일에서 더 상세한 상태 표시
-                    scanStatusFullscreen.textContent = `🔍 이미지 검색 중... (${detectionCount}/${maxDetections})`;
+                    // 간단한 상태 표시
+                    scanStatusFullscreen.textContent = `🔍 이미지 검색 중...`;
 
                     if (bestMatch && bestScore > threshold) {
                         // 새로운 AR 이미지가 감지되었거나 다른 AR 이미지가 감지된 경우
@@ -2710,11 +2690,9 @@
                             loadFullscreenAR(bestMatch.id);
                         }
                         
-                        // 모바일에서 더 상세한 성공 메시지
-                        scanStatusFullscreen.textContent = `🎯 AR 이미지 감지됨! (${Math.round(bestScore * 100)}%)`;
+                        // 간단한 성공 메시지
                         scanInstructionsFullscreen.innerHTML = `
-                            <span style="color: #4CAF50;">🎯 AR 이미지 감지됨!</span><br>
-                            <span style="opacity: 0.8;">AR 영상을 로딩합니다...</span>
+                            <span style="color: #4CAF50;">🎯 AR 이미지 감지됨</span>
                         `;
                         
                     } else {
@@ -2725,10 +2703,9 @@
                             hideFullscreenAR();
                         }
                         
-                        // 모바일에서 더 상세한 검색 메시지
+                        // 간단한 검색 메시지
                         scanInstructionsFullscreen.innerHTML = `
-                            <span style="color: #4CAF50;">🔍 이미지 검색 중...</span><br>
-                            <span style="opacity: 0.7;">AR 이미지를 카메라에 비춰주세요</span>
+                            <span style="color: #4CAF50;">🔍 이미지 검색 중...</span>
                         `;
                     }
                     
@@ -2810,25 +2787,120 @@
             const scanStatusFullscreen = document.getElementById('scanStatusFullscreen');
             const scanInstructionsFullscreen = document.getElementById('scanInstructionsFullscreen');
             
-            // 모바일 친화적인 오류 메시지
-            if (/Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)) {
+            // 모바일 환경 감지
+            const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+            const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+            const isAndroid = /Android/i.test(navigator.userAgent);
+            
+            console.error('📱 모바일 카메라 오류 상세:', error);
+            
+            if (isMobile) {
                 scanStatusFullscreen.textContent = `📱 모바일 카메라 오류`;
+                
+                let errorMessage = '';
+                let solutionMessage = '';
+                
+                // 오류 유형별 상세 메시지
+                if (error.message.includes('Permission denied') || error.message.includes('NotAllowedError')) {
+                    errorMessage = '카메라 권한이 거부되었습니다';
+                    solutionMessage = `
+                        📱 브라우저 설정에서 카메라 권한을 허용해주세요<br>
+                        <span style="opacity: 0.7; font-size: 0.9em;">
+                            ${isIOS ? '• iOS Safari: 설정 > Safari > 카메라 > 허용<br>' : ''}
+                            ${isAndroid ? '• Android Chrome: 주소창 옆 자물쇠 아이콘 > 카메라 허용<br>' : ''}
+                            • 브라우저를 새로고침한 후 다시 시도해주세요
+                        </span>
+                    `;
+                } else if (error.message.includes('NotFoundError') || error.message.includes('DevicesNotFoundError')) {
+                    errorMessage = '카메라를 찾을 수 없습니다';
+                    solutionMessage = `
+                        📱 기기에 카메라가 있는지 확인해주세요<br>
+                        <span style="opacity: 0.7; font-size: 0.9em;">
+                            • 다른 앱에서 카메라가 사용 중인지 확인<br>
+                            • 기기를 재시작한 후 다시 시도해주세요
+                        </span>
+                    `;
+                } else if (error.message.includes('NotSupportedError') || error.message.includes('ConstraintNotSatisfiedError')) {
+                    errorMessage = '지원되지 않는 카메라 설정입니다';
+                    solutionMessage = `
+                        📱 다른 브라우저로 시도해보세요<br>
+                        <span style="opacity: 0.7; font-size: 0.9em;">
+                            • Chrome, Safari, Firefox 등 최신 브라우저 사용<br>
+                            • 브라우저를 최신 버전으로 업데이트해주세요
+                        </span>
+                    `;
+                } else {
+                    errorMessage = '모바일에서 카메라 접근에 실패했습니다';
+                    solutionMessage = `
+                        📱 다음 방법을 시도해보세요<br>
+                        <span style="opacity: 0.7; font-size: 0.9em;">
+                            • 브라우저를 새로고침하고 다시 시도<br>
+                            • 다른 브라우저로 시도<br>
+                            • 기기를 재시작한 후 다시 시도
+                        </span>
+                    `;
+                }
+                
                 scanInstructionsFullscreen.innerHTML = `
-                    <span style="color: #ff6b35;">모바일에서 카메라 접근에 실패했습니다</span><br>
-                    <span style="opacity: 0.7; font-size: 0.9em;">
-                        • 브라우저 설정에서 카메라 권한을 확인해주세요<br>
-                        • HTTPS 연결이 필요할 수 있습니다<br>
-                        • 다른 브라우저로 시도해보세요
-                    </span>
+                    <span style="color: #ff6b35;">${errorMessage}</span><br>
+                    ${solutionMessage}
+                    <br>
+                    <button onclick="retryCameraAccess()" style="
+                        background: #ff6b35; 
+                        color: white; 
+                        border: none; 
+                        padding: 10px 20px; 
+                        border-radius: 20px; 
+                        margin-top: 10px;
+                        font-size: 14px;
+                        cursor: pointer;
+                    ">🔄 다시 시도</button>
                 `;
             } else {
                 scanStatusFullscreen.textContent = `❌ 카메라 오류`;
                 scanInstructionsFullscreen.innerHTML = `
-                    <span style="color: #ff6b35;">카메라 접근에 실패했습니다</span>
+                    <span style="color: #ff6b35;">카메라 접근에 실패했습니다</span><br>
+                    <span style="opacity: 0.7; font-size: 0.9em;">
+                        • 브라우저 설정에서 카메라 권한을 확인해주세요<br>
+                        • HTTPS 연결이 필요할 수 있습니다
+                    </span>
+                    <br>
+                    <button onclick="retryCameraAccess()" style="
+                        background: #ff6b35; 
+                        color: white; 
+                        border: none; 
+                        padding: 10px 20px; 
+                        border-radius: 20px; 
+                        margin-top: 10px;
+                        font-size: 14px;
+                        cursor: pointer;
+                    ">🔄 다시 시도</button>
                 `;
             }
+        }
+
+        function retryCameraAccess() {
+            console.log('📱 카메라 접근 재시도');
             
-            console.error('카메라 오류 상세:', error);
+            const scanStatusFullscreen = document.getElementById('scanStatusFullscreen');
+            const scanInstructionsFullscreen = document.getElementById('scanInstructionsFullscreen');
+            
+            // 상태 초기화
+            scanStatusFullscreen.textContent = '📱 모바일 카메라 접근 중...';
+            scanInstructionsFullscreen.innerHTML = `
+                📱 모바일 브라우저에서 카메라 권한을 허용해주세요<br>
+                <span style="opacity: 0.7;">권한 요청 팝업이 나타날 수 있습니다</span>
+            `;
+            
+            // 카메라 접근 재시도
+            setTimeout(async () => {
+                try {
+                    await attemptMobileCameraAccess();
+                } catch (error) {
+                    console.error('📱 카메라 접근 재시도 실패:', error);
+                    showFullscreenScanError(error);
+                }
+            }, 1000);
         }
 
         function closeFullscreenScan() {
@@ -6892,12 +6964,35 @@
             initializeMobileOptimizations();
             
             // 모바일 환경에서 추가적인 초기화
-            const isMobile = /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+            const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+            const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+            
             if (isMobile) {
                 // 모바일에서 뷰포트 설정 확인
                 const viewport = document.querySelector('meta[name="viewport"]');
                 if (viewport) {
                     viewport.setAttribute('content', 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no');
+                }
+                
+                // gh-pages HTTPS 환경 확인
+                if (window.location.protocol === 'https:') {
+                    console.log('📱 HTTPS 환경 감지 - 카메라 접근이 안정적입니다');
+                } else {
+                    console.warn('📱 HTTP 환경 - 카메라 접근이 제한될 수 있습니다');
+                }
+                
+                // iOS Safari 특별 처리
+                if (isIOS) {
+                    console.log('📱 iOS Safari 환경 감지');
+                    
+                    // iOS에서 카메라 권한 상태 확인
+                    if (navigator.permissions && navigator.permissions.query) {
+                        navigator.permissions.query({ name: 'camera' }).then(result => {
+                            console.log('📱 iOS 카메라 권한 상태:', result.state);
+                        }).catch(err => {
+                            console.log('📱 iOS 카메라 권한 확인 실패:', err);
+                        });
+                    }
                 }
                 
                 console.log('📱 모바일 환경 초기화 완료');
