@@ -1982,6 +1982,14 @@
         async function startFullscreenScan() {
             console.log('🔍 전체 화면 스캔 시작 - 함수 호출됨');
             
+            // 모바일에서 사용자 상호작용 보장
+            if (/Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)) {
+                console.log('📱 모바일 환경 감지 - 사용자 상호작용 보장');
+                
+                // 모바일에서 카메라 접근 전 약간의 지연
+                await new Promise(resolve => setTimeout(resolve, 100));
+            }
+            
             // 버튼 상태 확인
             const btn = document.getElementById('startScanBtn');
             if (btn) {
@@ -2008,233 +2016,12 @@
                     모바일 브라우저에서 카메라 권한을 허용해주세요<br>
                     <span style="opacity: 0.7;">권한 요청 팝업이 나타날 수 있습니다</span>
                 `;
-                
-                // 모바일에서 즉시 카메라 접근 시도 (사용자 클릭 이벤트 내에서)
-                setTimeout(() => {
-                    console.log('📱 모바일에서 즉시 카메라 접근 시도');
-                    attemptMobileCameraAccess();
-                }, 100);
-                return; // 여기서 함수 종료
             } else {
                 scanStatusFullscreen.textContent = '카메라 권한을 요청하고 있습니다...';
             }
             
             // 페이지 스크롤 방지
             document.body.style.overflow = 'hidden';
-            
-            // 모바일에서 사용자 상호작용 보장 - 즉시 카메라 접근 시도
-            if (/Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)) {
-                console.log('📱 모바일 환경 감지 - 즉시 카메라 접근 시도');
-                // 모바일에서는 즉시 카메라 접근 시도 (사용자 클릭 이벤트 내에서)
-                await attemptMobileCameraAccess();
-            } else {
-                // 데스크톱에서는 기존 방식
-                await attemptDesktopCameraAccess();
-            }
-        }
-        
-        async function attemptMobileCameraAccess() {
-            const scanStatusFullscreen = document.getElementById('scanStatusFullscreen');
-            const scanInstructionsFullscreen = document.getElementById('scanInstructionsFullscreen');
-            const scannerVideoFullscreen = document.getElementById('scannerVideoFullscreen');
-            
-            try {
-                let stream = null;
-                
-                // 모바일에서 가장 안정적인 방법: 최소한의 설정으로 시작
-                console.log('📱 모바일 카메라 접근 시도 - 매우 간단한 설정');
-                
-                try {
-                    stream = await navigator.mediaDevices.getUserMedia({ 
-                        video: true // 가장 간단한 설정
-                    });
-                    console.log('✅ 모바일 카메라 접근 성공 (기본 설정)');
-                } catch (basicError) {
-                    console.warn('기본 카메라 접근 실패:', basicError.message);
-                    
-                    try {
-                        // 후면 카메라 시도
-                        console.log('📱 후면 카메라 접근 시도');
-                        stream = await navigator.mediaDevices.getUserMedia({ 
-                            video: { 
-                                facingMode: 'environment'
-                            } 
-                        });
-                        console.log('✅ 후면 카메라 접근 성공');
-                    } catch (envError) {
-                        console.warn('후면 카메라 접근 실패:', envError.message);
-                        
-                        try {
-                            // 전면 카메라 시도
-                            console.log('📱 전면 카메라 접근 시도');
-                            stream = await navigator.mediaDevices.getUserMedia({ 
-                                video: { 
-                                    facingMode: 'user'
-                                } 
-                            });
-                            console.log('✅ 전면 카메라 접근 성공');
-                        } catch (userError) {
-                            console.warn('전면 카메라 접근 실패:', userError.message);
-                            
-                            try {
-                                // 매우 낮은 해상도로 시도
-                                console.log('📱 낮은 해상도 카메라 접근 시도');
-                                stream = await navigator.mediaDevices.getUserMedia({ 
-                                    video: {
-                                        width: { ideal: 320, min: 160 },
-                                        height: { ideal: 240, min: 120 }
-                                    }
-                                });
-                                console.log('✅ 낮은 해상도 카메라 접근 성공');
-                            } catch (finalError) {
-                                console.error('모든 카메라 접근 시도 실패:', finalError);
-                                throw new Error(`모바일 카메라 접근 실패: ${finalError.message}`);
-                            }
-                        }
-                    }
-                }
-                
-                if (stream) {
-                    console.log('📱 비디오 스트림 설정 시작');
-                    scannerVideoFullscreen.srcObject = stream;
-                    
-                    // 모바일 최적화: 매우 안정적인 비디오 스트림 시작
-                    await new Promise((resolve, reject) => {
-                        const timeout = setTimeout(() => {
-                            console.warn('📱 모바일 비디오 시작 시간 초과, 계속 진행');
-                            resolve(); // 타임아웃해도 계속 진행
-                        }, 15000); // 모바일에서는 15초로 늘림
-                        
-                        scannerVideoFullscreen.onloadedmetadata = () => {
-                            console.log('📱 비디오 메타데이터 로드 완료');
-                            clearTimeout(timeout);
-                            
-                            // 모바일에서 play() 호출 시 사용자 상호작용 필요할 수 있음
-                            scannerVideoFullscreen.play().then(() => {
-                                console.log('✅ 모바일 비디오 재생 시작');
-                                resolve();
-                            }).catch((playError) => {
-                                console.warn('모바일 비디오 재생 실패, 계속 진행:', playError);
-                                // 재생 실패해도 계속 진행 (일부 모바일 브라우저에서 발생)
-                                resolve();
-                            });
-                        };
-                        
-                        scannerVideoFullscreen.onerror = (error) => {
-                            console.warn('📱 모바일 비디오 오류, 계속 진행:', error);
-                            clearTimeout(timeout);
-                            // 오류가 발생해도 계속 진행
-                            resolve();
-                        };
-                        
-                        // 모바일에서 추가 이벤트 리스너
-                        scannerVideoFullscreen.oncanplay = () => {
-                            console.log('📱 모바일 비디오 재생 가능');
-                        };
-                        
-                        // 모바일에서 추가 이벤트 리스너
-                        scannerVideoFullscreen.onloadeddata = () => {
-                            console.log('📱 모바일 비디오 데이터 로드 완료');
-                        };
-                    });
-                    
-                    // 성공 시 안내 메시지 업데이트
-                    scanStatusFullscreen.textContent = '🔍 자동 이미지 감지 준비 완료';
-                    scanInstructionsFullscreen.innerHTML = `
-                        화면 어디든 AR 이미지를 비춰주세요<br>
-                        <span style="opacity: 0.7;">자동으로 이미지를 찾아서 분석합니다</span>
-                    `;
-                    
-                    // 즉시 자동 감지 시작 (프레임 제한 없음)
-                    scanTimeout = setTimeout(() => {
-                        console.log('🔍 전체 화면 자동 이미지 감지 시작');
-                        startAutoDetectionFullscreen();
-                    }, 100); // 0.1초 후 시작 (극도로 빠르게)
-                } else {
-                    throw new Error('카메라 스트림을 가져올 수 없습니다');
-                }
-                
-            } catch (error) {
-                console.error('모바일 카메라 접근 실패:', error);
-                showFullscreenScanError(error);
-            }
-        }
-        
-        async function attemptDesktopCameraAccess() {
-            const scanStatusFullscreen = document.getElementById('scanStatusFullscreen');
-            const scanInstructionsFullscreen = document.getElementById('scanInstructionsFullscreen');
-            const scannerVideoFullscreen = document.getElementById('scannerVideoFullscreen');
-            
-            try {
-                let stream = null;
-                
-                try {
-                    // 데스크톱 카메라 접근
-                    console.log('🖥️ 데스크톱 카메라 접근 시도');
-                    stream = await navigator.mediaDevices.getUserMedia({ 
-                        video: {
-                            width: { ideal: 1280, min: 640 },
-                            height: { ideal: 720, min: 480 }
-                        }
-                    });
-                    console.log('✅ 데스크톱 카메라 접근 성공');
-                    
-                } catch (error) {
-                    console.error('데스크톱 카메라 접근 실패:', error);
-                    throw error;
-                }
-                
-                if (stream) {
-                    console.log('🖥️ 비디오 스트림 설정 시작');
-                    scannerVideoFullscreen.srcObject = stream;
-                    
-                    // 데스크톱 비디오 스트림 시작
-                    await new Promise((resolve, reject) => {
-                        const timeout = setTimeout(() => {
-                            reject(new Error('데스크톱 비디오 시작 시간 초과'));
-                        }, 10000);
-                        
-                        scannerVideoFullscreen.onloadedmetadata = () => {
-                            console.log('🖥️ 비디오 메타데이터 로드 완료');
-                            clearTimeout(timeout);
-                            
-                            scannerVideoFullscreen.play().then(() => {
-                                console.log('✅ 데스크톱 비디오 재생 시작');
-                                resolve();
-                            }).catch((playError) => {
-                                console.error('데스크톱 비디오 재생 실패:', playError);
-                                reject(playError);
-                            });
-                        };
-                        
-                        scannerVideoFullscreen.onerror = (error) => {
-                            console.error('🖥️ 데스크톱 비디오 오류:', error);
-                            clearTimeout(timeout);
-                            reject(error);
-                        };
-                    });
-                    
-                    // 성공 시 안내 메시지 업데이트
-                    scanStatusFullscreen.textContent = '🔍 자동 이미지 감지 준비 완료';
-                    scanInstructionsFullscreen.innerHTML = `
-                        화면 어디든 AR 이미지를 비춰주세요<br>
-                        <span style="opacity: 0.7;">자동으로 이미지를 찾아서 분석합니다</span>
-                    `;
-                    
-                    // 즉시 자동 감지 시작
-                    scanTimeout = setTimeout(() => {
-                        console.log('🔍 전체 화면 자동 이미지 감지 시작');
-                        startAutoDetectionFullscreen();
-                    }, 100);
-                } else {
-                    throw new Error('카메라 스트림을 가져올 수 없습니다');
-                }
-                
-            } catch (error) {
-                console.error('데스크톱 카메라 접근 실패:', error);
-                showFullscreenScanError(error);
-            }
-        }
             
             try {
                 let stream = null;
