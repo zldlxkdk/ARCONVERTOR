@@ -2233,29 +2233,31 @@
                 let stream = null;
                 
                 try {
-                    // 모바일 최적화: 매우 간단한 카메라 접근
-                    console.log('📱 모바일 카메라 접근 시도 - 매우 간단한 설정');
+                    // 모바일에서 즉시 카메라 접근 시도
+                    console.log('📱 모바일 카메라 접근 시도 - 즉시 시도');
                     
-                    // 모바일에서 가장 안정적인 방법: 최소한의 설정으로 시작
+                    // 모바일에서 가장 안정적인 방법: 즉시 카메라 접근
                     stream = await navigator.mediaDevices.getUserMedia({ 
-                        video: true // 가장 간단한 설정
+                        video: {
+                            facingMode: { ideal: 'environment' }, // 후면 카메라 우선
+                            width: { ideal: 640, min: 320 },
+                            height: { ideal: 480, min: 240 }
+                        }
                     });
-                    console.log('✅ 모바일 카메라 접근 성공 (기본 설정)');
+                    console.log('✅ 모바일 카메라 접근 성공');
                     
-                } catch (basicError) {
-                    console.warn('기본 카메라 접근 실패:', basicError.message);
+                } catch (primaryError) {
+                    console.warn('주요 카메라 접근 실패:', primaryError.message);
                     
                     try {
-                        // 후면 카메라 시도
-                        console.log('📱 후면 카메라 접근 시도');
+                        // 더 간단한 설정으로 재시도
+                        console.log('📱 간단한 설정으로 카메라 접근 재시도');
                         stream = await navigator.mediaDevices.getUserMedia({ 
-                            video: { 
-                                facingMode: 'environment'
-                            } 
+                            video: true // 가장 간단한 설정
                         });
-                        console.log('✅ 후면 카메라 접근 성공');
-                    } catch (envError) {
-                        console.warn('후면 카메라 접근 실패:', envError.message);
+                        console.log('✅ 간단한 설정 카메라 접근 성공');
+                    } catch (simpleError) {
+                        console.warn('간단한 설정 카메라 접근 실패:', simpleError.message);
                         
                         try {
                             // 전면 카메라 시도
