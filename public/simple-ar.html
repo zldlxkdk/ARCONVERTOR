@@ -798,181 +798,17 @@
         .scanner-overlay-fullscreen::before {
             top: -6px;
             left: -6px;
-            border-right: none;
-            border-bottom: none;
+            border-right: transparent;
+            border-bottom: transparent;
+            border-top-left-radius: 20px;
         }
 
         .scanner-overlay-fullscreen::after {
-            bottom: -6px;
-            right: -6px;
-            border-left: none;
-            border-top: none;
-        }
-
-        /* 모바일 최적화 스타일 */
-        @media (max-width: 768px) {
-            .container {
-                max-width: 100%;
-                padding: 15px;
-            }
-
-            .step {
-                padding: 15px;
-                margin-bottom: 15px;
-            }
-
-            .step-title {
-                font-size: 16px;
-            }
-
-            .btn {
-                padding: 15px 20px;
-                font-size: 16px;
-                border-radius: 25px;
-            }
-
-            .upload-area {
-                padding: 30px 20px;
-            }
-
-            .upload-text {
-                font-size: 16px;
-            }
-
-            .scanner-video {
-                height: 300px;
-            }
-
-            .scanner-overlay {
-                width: 250px;
-                height: 250px;
-            }
-
-            .scanner-overlay-fullscreen {
-                width: 250px;
-                height: 250px;
-                border-width: 3px;
-            }
-
-            .scanner-overlay-fullscreen::before,
-            .scanner-overlay-fullscreen::after {
-                width: 30px;
-                height: 30px;
-                border-width: 4px;
-            }
-
-            .overlay-video {
-                width: 280px;
-                height: 180px;
-            }
-
-            .overlay-frame {
-                width: 300px;
-                height: 200px;
-            }
-
-            .overlay-instructions {
-                bottom: 10%;
-                padding: 15px 25px;
-                font-size: 16px;
-                border-radius: 25px;
-            }
-
-            .ar-controls {
-                top: 15px;
-                left: 15px;
-                right: 15px;
-            }
-
-            .ar-status {
-                padding: 12px 18px;
-                font-size: 16px;
-                border-radius: 25px;
-            }
-
-            .ar-close {
-                padding: 12px 20px;
-                font-size: 14px;
-                border-radius: 25px;
-            }
-
-            .youtube-content {
-                width: 95%;
-                height: 85%;
-                padding: 25px;
-            }
-
-            .youtube-header {
-                font-size: 18px;
-            }
-
-            .youtube-iframe {
-                min-height: 250px;
-            }
-
-            /* 터치 인터페이스 최적화 */
-            .mode-btn {
-                padding: 15px 20px;
-                font-size: 16px;
-                border-radius: 25px;
-                min-height: 50px;
-            }
-
-            .btn-small {
-                padding: 12px 20px;
-                font-size: 14px;
-                border-radius: 20px;
-                min-height: 45px;
-            }
-
-            /* 모바일에서 더 큰 터치 영역 */
-            input[type="file"] {
-                min-height: 50px;
-            }
-
-            .time-slider {
-                height: 8px;
-            }
-
-            .time-slider::-webkit-slider-thumb {
-                width: 20px;
-                height: 20px;
-            }
-
-            .time-slider::-moz-range-thumb {
-                width: 20px;
-                height: 20px;
-            }
-
-            /* 모바일에서 스크롤 최적화 */
-            body {
-                -webkit-overflow-scrolling: touch;
-            }
-
-            /* 모바일에서 줌 방지 */
-            input, textarea, select {
-                font-size: 16px;
-            }
-        }
-
-        /* iOS Safari 최적화 */
-        @supports (-webkit-touch-callout: none) {
-            .btn, .mode-btn, .btn-small {
-                -webkit-appearance: none;
-                -webkit-tap-highlight-color: transparent;
-            }
-
-            .scanner-video-fullscreen {
-                -webkit-transform: translateZ(0);
-            }
-        }
-
-        .scanner-overlay-fullscreen::after {
-            bottom: -6px;
+            top: -6px;
             right: -6px;
             border-left: transparent;
-            border-top: transparent;
-            border-bottom-right-radius: 20px;
+            border-bottom: transparent;
+            border-top-right-radius: 20px;
         }
 
         /* 추가 코너 마커 */
@@ -2146,10 +1982,6 @@
         async function startFullscreenScan() {
             console.log('🔍 전체 화면 스캔 시작 - 함수 호출됨');
             
-            // 모바일 환경 감지
-            const isMobile = /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-            const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
-            
             // 버튼 상태 확인
             const btn = document.getElementById('startScanBtn');
             if (btn) {
@@ -2169,39 +2001,28 @@
             fullscreenScanner.classList.add('active');
             fullscreenScanner.style.display = 'block';
             
-            // 모바일 최적화 안내 메시지
-            if (isMobile) {
+            // 모바일에서 카메라 권한 요청 전 안내
+            if (/Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)) {
                 scanStatusFullscreen.textContent = '📱 모바일 카메라 접근 중...';
                 scanInstructionsFullscreen.innerHTML = `
-                    📱 모바일 브라우저에서 카메라 권한을 허용해주세요<br>
+                    모바일 브라우저에서 카메라 권한을 허용해주세요<br>
                     <span style="opacity: 0.7;">권한 요청 팝업이 나타날 수 있습니다</span>
-                    ${isIOS ? '<br><span style="color: #ff6b35;">iOS Safari에서는 홈 화면에 추가 후 사용하시면 더 안정적입니다</span>' : ''}
                 `;
             } else {
                 scanStatusFullscreen.textContent = '카메라 권한을 요청하고 있습니다...';
             }
             
-            // 페이지 스크롤 방지 및 모바일 최적화
+            // 페이지 스크롤 방지
             document.body.style.overflow = 'hidden';
             
-            // 모바일에서 화면 방향 고정 (가능한 경우)
-            if (isMobile && screen.orientation && screen.orientation.lock) {
-                try {
-                    await screen.orientation.lock('portrait');
-                    console.log('📱 화면 방향을 세로로 고정했습니다');
-                } catch (orientationError) {
-                    console.log('📱 화면 방향 고정 실패 (정상적인 동작)');
-                }
-            }
-            
             // 모바일에서 사용자 상호작용 보장 - 즉시 카메라 접근 시도
-            if (isMobile) {
+            if (/Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)) {
                 console.log('📱 모바일 환경 감지 - 즉시 카메라 접근 시도');
                 // 모바일에서는 즉시 카메라 접근 시도 (사용자 클릭 이벤트 내에서)
                 await attemptMobileCameraAccess();
             } else {
                 // 데스크톱에서는 기존 방식
-                await attemptMobileCameraAccess();
+                await attemptDesktopCameraAccess();
             }
         }
         
@@ -2259,8 +2080,8 @@
                                 });
                                 console.log('✅ 낮은 해상도 카메라 접근 성공');
                             } catch (finalError) {
-                                console.error('!모든 카메라 접근 시도 실패:', finalError);
-                                throw new Error(`!모바일 카메라 접근 실패: ${finalError.message}`);
+                                console.error('모든 카메라 접근 시도 실패:', finalError);
+                                throw new Error(`모바일 카메라 접근 실패: ${finalError.message}`);
                             }
                         }
                     }
@@ -2332,7 +2153,7 @@
             }
         }
         
-        async function attemptMobileCameraAccess() {
+        async function attemptDesktopCameraAccess() {
             const scanStatusFullscreen = document.getElementById('scanStatusFullscreen');
             const scanInstructionsFullscreen = document.getElementById('scanInstructionsFullscreen');
             const scannerVideoFullscreen = document.getElementById('scannerVideoFullscreen');
@@ -2340,52 +2161,128 @@
             try {
                 let stream = null;
                 
-                // 모바일 환경 감지
-                const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-                const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
-                
                 try {
-                    // 모바일 카메라 접근 (후면 카메라 우선)
-                    console.log('📱 모바일 카메라 접근 시도');
-                    
-                    const constraints = {
+                    // 데스크톱 카메라 접근
+                    console.log('🖥️ 데스크톱 카메라 접근 시도');
+                    stream = await navigator.mediaDevices.getUserMedia({ 
                         video: {
-                            facingMode: { ideal: 'environment' }, // 후면 카메라 우선
-                            width: { ideal: 1280, min: 640 },
-                            height: { ideal: 720, min: 480 },
-                            aspectRatio: { ideal: 16/9 }
-                        }
-                    };
-                    
-                    // iOS Safari 최적화
-                    if (isIOS) {
-                        constraints.video = {
-                            facingMode: { ideal: 'environment' },
                             width: { ideal: 1280, min: 640 },
                             height: { ideal: 720, min: 480 }
-                        };
-                    }
-                    
-                    stream = await navigator.mediaDevices.getUserMedia(constraints);
-                    console.log('✅ 모바일 카메라 접근 성공');
+                        }
+                    });
+                    console.log('✅ 데스크톱 카메라 접근 성공');
                     
                 } catch (error) {
-                    console.error('모바일 카메라 접근 실패:', error);
+                    console.error('데스크톱 카메라 접근 실패:', error);
+                    throw error;
+                }
+                
+                if (stream) {
+                    console.log('🖥️ 비디오 스트림 설정 시작');
+                    scannerVideoFullscreen.srcObject = stream;
                     
-                    // 후면 카메라 실패 시 전면 카메라로 재시도
+                    // 데스크톱 비디오 스트림 시작
+                    await new Promise((resolve, reject) => {
+                        const timeout = setTimeout(() => {
+                            reject(new Error('데스크톱 비디오 시작 시간 초과'));
+                        }, 10000);
+                        
+                        scannerVideoFullscreen.onloadedmetadata = () => {
+                            console.log('🖥️ 비디오 메타데이터 로드 완료');
+                            clearTimeout(timeout);
+                            
+                            scannerVideoFullscreen.play().then(() => {
+                                console.log('✅ 데스크톱 비디오 재생 시작');
+                                resolve();
+                            }).catch((playError) => {
+                                console.error('데스크톱 비디오 재생 실패:', playError);
+                                reject(playError);
+                            });
+                        };
+                        
+                        scannerVideoFullscreen.onerror = (error) => {
+                            console.error('🖥️ 데스크톱 비디오 오류:', error);
+                            clearTimeout(timeout);
+                            reject(error);
+                        };
+                    });
+                    
+                    // 성공 시 안내 메시지 업데이트
+                    scanStatusFullscreen.textContent = '🔍 자동 이미지 감지 준비 완료';
+                    scanInstructionsFullscreen.innerHTML = `
+                        화면 어디든 AR 이미지를 비춰주세요<br>
+                        <span style="opacity: 0.7;">자동으로 이미지를 찾아서 분석합니다</span>
+                    `;
+                    
+                    // 즉시 자동 감지 시작
+                    scanTimeout = setTimeout(() => {
+                        console.log('🔍 전체 화면 자동 이미지 감지 시작');
+                        startAutoDetectionFullscreen();
+                    }, 100);
+                } else {
+                    throw new Error('카메라 스트림을 가져올 수 없습니다');
+                }
+                
+            } catch (error) {
+                console.error('데스크톱 카메라 접근 실패:', error);
+                showFullscreenScanError(error);
+            }
+            
+            try {
+                let stream = null;
+                
+                try {
+                    // 모바일 최적화: 매우 간단한 카메라 접근
+                    console.log('📱 모바일 카메라 접근 시도 - 매우 간단한 설정');
+                    
+                    // 모바일에서 가장 안정적인 방법: 최소한의 설정으로 시작
+                    stream = await navigator.mediaDevices.getUserMedia({ 
+                        video: true // 가장 간단한 설정
+                    });
+                    console.log('✅ 모바일 카메라 접근 성공 (기본 설정)');
+                    
+                } catch (basicError) {
+                    console.warn('기본 카메라 접근 실패:', basicError.message);
+                    
                     try {
-                        console.log('🔄 전면 카메라로 재시도');
-                        stream = await navigator.mediaDevices.getUserMedia({
-                            video: {
-                                facingMode: 'user',
-                                width: { ideal: 1280, min: 640 },
-                                height: { ideal: 720, min: 480 }
-                            }
+                        // 후면 카메라 시도
+                        console.log('📱 후면 카메라 접근 시도');
+                        stream = await navigator.mediaDevices.getUserMedia({ 
+                            video: { 
+                                facingMode: 'environment'
+                            } 
                         });
-                        console.log('✅ 전면 카메라 접근 성공');
-                    } catch (frontCameraError) {
-                        console.error('전면 카메라 접근도 실패:', frontCameraError);
-                        throw error; // 원래 에러를 던짐
+                        console.log('✅ 후면 카메라 접근 성공');
+                    } catch (envError) {
+                        console.warn('후면 카메라 접근 실패:', envError.message);
+                        
+                        try {
+                            // 전면 카메라 시도
+                            console.log('📱 전면 카메라 접근 시도');
+                            stream = await navigator.mediaDevices.getUserMedia({ 
+                                video: { 
+                                    facingMode: 'user'
+                                } 
+                            });
+                            console.log('✅ 전면 카메라 접근 성공');
+                        } catch (userError) {
+                            console.warn('전면 카메라 접근 실패:', userError.message);
+                            
+                            try {
+                                // 매우 낮은 해상도로 시도
+                                console.log('📱 낮은 해상도 카메라 접근 시도');
+                                stream = await navigator.mediaDevices.getUserMedia({ 
+                                    video: {
+                                        width: { ideal: 320, min: 160 },
+                                        height: { ideal: 240, min: 120 }
+                                    }
+                                });
+                                console.log('✅ 낮은 해상도 카메라 접근 성공');
+                            } catch (finalError) {
+                                console.error('모든 카메라 접근 시도 실패:', finalError);
+                                throw new Error(`모바일 카메라 접근 실패: ${finalError.message}`);
+                            }
+                        }
                     }
                 }
                 
@@ -2393,72 +2290,64 @@
                     console.log('📱 비디오 스트림 설정 시작');
                     scannerVideoFullscreen.srcObject = stream;
                     
-                    // 모바일 비디오 스트림 시작
+                    // 모바일 최적화: 매우 안정적인 비디오 스트림 시작
                     await new Promise((resolve, reject) => {
                         const timeout = setTimeout(() => {
-                            reject(new Error('모바일 비디오 시작 시간 초과'));
-                        }, 15000); // 모바일은 더 긴 시간 허용
+                            console.warn('📱 모바일 비디오 시작 시간 초과, 계속 진행');
+                            resolve(); // 타임아웃해도 계속 진행
+                        }, 15000); // 모바일에서는 15초로 늘림
                         
                         scannerVideoFullscreen.onloadedmetadata = () => {
                             console.log('📱 비디오 메타데이터 로드 완료');
                             clearTimeout(timeout);
                             
-                            // 모바일에서 자동 재생 정책 대응
-                            const playPromise = scannerVideoFullscreen.play();
-                            
-                            if (playPromise !== undefined) {
-                                playPromise.then(() => {
-                                    console.log('✅ 모바일 비디오 재생 시작');
-                                    resolve();
-                                }).catch((playError) => {
-                                    console.error('모바일 비디오 재생 실패:', playError);
-                                    
-                                    // iOS Safari에서 자동 재생 정책으로 인한 실패 시
-                                    if (isIOS && playError.name === 'NotAllowedError') {
-                                        console.log('📱 iOS 자동 재생 정책 감지, 사용자 상호작용 대기');
-                                        // 사용자 터치 이벤트 대기
-                                        const handleTouch = () => {
-                                            scannerVideoFullscreen.play().then(() => {
-                                                console.log('✅ iOS 터치 후 비디오 재생 성공');
-                                                resolve();
-                                            }).catch(resolve); // 실패해도 계속 진행
-                                            document.removeEventListener('touchstart', handleTouch);
-                                        };
-                                        document.addEventListener('touchstart', handleTouch, { once: true });
-                                    } else {
-                                        reject(playError);
-                                    }
-                                });
-                            } else {
+                            // 모바일에서 play() 호출 시 사용자 상호작용 필요할 수 있음
+                            scannerVideoFullscreen.play().then(() => {
+                                console.log('✅ 모바일 비디오 재생 시작');
                                 resolve();
-                            }
+                            }).catch((playError) => {
+                                console.warn('모바일 비디오 재생 실패, 계속 진행:', playError);
+                                // 재생 실패해도 계속 진행 (일부 모바일 브라우저에서 발생)
+                                resolve();
+                            });
                         };
                         
                         scannerVideoFullscreen.onerror = (error) => {
-                            console.error('📱 모바일 비디오 오류:', error);
+                            console.warn('📱 모바일 비디오 오류, 계속 진행:', error);
                             clearTimeout(timeout);
-                            reject(error);
+                            // 오류가 발생해도 계속 진행
+                            resolve();
+                        };
+                        
+                        // 모바일에서 추가 이벤트 리스너
+                        scannerVideoFullscreen.oncanplay = () => {
+                            console.log('📱 모바일 비디오 재생 가능');
+                        };
+                        
+                        // 모바일에서 추가 이벤트 리스너
+                        scannerVideoFullscreen.onloadeddata = () => {
+                            console.log('📱 모바일 비디오 데이터 로드 완료');
                         };
                     });
                     
                     // 성공 시 안내 메시지 업데이트
-                    scanStatusFullscreen.textContent = '🔍 AR 이미지 감지 준비 완료';
+                    scanStatusFullscreen.textContent = '🔍 자동 이미지 감지 준비 완료';
                     scanInstructionsFullscreen.innerHTML = `
-                        📱 카메라를 AR 이미지에 비춰주세요<br>
+                        화면 어디든 AR 이미지를 비춰주세요<br>
                         <span style="opacity: 0.7;">자동으로 이미지를 찾아서 분석합니다</span>
                     `;
                     
-                    // 모바일에서 약간의 지연 후 자동 감지 시작
+                    // 즉시 자동 감지 시작 (프레임 제한 없음)
                     scanTimeout = setTimeout(() => {
-                        console.log('🔍 모바일 자동 이미지 감지 시작');
+                        console.log('🔍 전체 화면 자동 이미지 감지 시작');
                         startAutoDetectionFullscreen();
-                    }, 500); // 모바일은 더 긴 지연 시간
+                    }, 100); // 0.1초 후 시작 (극도로 빠르게)
                 } else {
                     throw new Error('카메라 스트림을 가져올 수 없습니다');
                 }
                 
             } catch (error) {
-                console.error('모바일 카메라 접근 실패:', error);
+                console.error('전체 화면 카메라 접근 실패:', error);
                 showFullscreenScanError(error);
             }
         }
@@ -6875,100 +6764,6 @@
             
             // 폴백 모드에서 YouTube 표시
             showYouTubeOnARImage(arData);
-        }
-
-        // 모바일 최적화 함수들
-        function initializeMobileOptimizations() {
-            const isMobile = /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-            
-            if (isMobile) {
-                console.log('📱 모바일 최적화 초기화');
-                
-                // 터치 이벤트 최적화
-                document.addEventListener('touchstart', handleTouchStart, { passive: true });
-                document.addEventListener('touchmove', handleTouchMove, { passive: false });
-                document.addEventListener('touchend', handleTouchEnd, { passive: true });
-                
-                // 모바일에서 줌 방지
-                document.addEventListener('gesturestart', preventZoom, { passive: false });
-                document.addEventListener('gesturechange', preventZoom, { passive: false });
-                document.addEventListener('gestureend', preventZoom, { passive: false });
-                
-                // 화면 방향 변경 감지
-                window.addEventListener('orientationchange', handleOrientationChange);
-                
-                // 모바일에서 더 나은 스크롤 경험
-                document.body.style.webkitOverflowScrolling = 'touch';
-            }
-        }
-
-        function handleTouchStart(event) {
-            // 터치 시작 시 처리
-            const touch = event.touches[0];
-            if (touch) {
-                // 터치 위치 저장 (필요시 사용)
-                window.lastTouchX = touch.clientX;
-                window.lastTouchY = touch.clientY;
-            }
-        }
-
-        function handleTouchMove(event) {
-            // 스크롤 중 터치 무브 이벤트 처리
-            // 필요한 경우에만 preventDefault 호출
-        }
-
-        function handleTouchEnd(event) {
-            // 터치 종료 시 처리
-            // 터치 위치 초기화
-            window.lastTouchX = null;
-            window.lastTouchY = null;
-        }
-
-        function preventZoom(event) {
-            // 모바일에서 핀치 줌 방지
-            event.preventDefault();
-        }
-
-        function handleOrientationChange() {
-            // 화면 방향 변경 시 처리
-            console.log('📱 화면 방향 변경 감지');
-            
-            // AR 뷰어가 활성화된 경우 재조정
-            const arViewer = document.querySelector('.ar-viewer.active');
-            if (arViewer) {
-                setTimeout(() => {
-                    // 화면 방향 변경 후 AR 뷰어 재조정
-                    console.log('📱 AR 뷰어 재조정 완료');
-                }, 500);
-            }
-        }
-
-        // 페이지 로드 시 모바일 최적화 초기화
-        document.addEventListener('DOMContentLoaded', function() {
-            initializeMobileOptimizations();
-            
-            // 모바일 환경에서 추가적인 초기화
-            const isMobile = /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-            if (isMobile) {
-                // 모바일에서 뷰포트 설정 확인
-                const viewport = document.querySelector('meta[name="viewport"]');
-                if (viewport) {
-                    viewport.setAttribute('content', 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no');
-                }
-                
-                console.log('📱 모바일 환경 초기화 완료');
-            }
-        });
-
-        // 모바일에서 더 나은 성능을 위한 추가 최적화
-        if ('serviceWorker' in navigator) {
-            window.addEventListener('load', function() {
-                navigator.serviceWorker.register('/sw.js').then(function(registration) {
-                    console.log('📱 Service Worker 등록 성공:', registration.scope);
-                }).catch(function(error) {
-                    console.log('📱 Service Worker 등록 실패:', error);
-                });
-            });
         }
     </script>
 </body>
